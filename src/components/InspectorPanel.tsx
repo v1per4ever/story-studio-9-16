@@ -14,6 +14,7 @@ import {
   BUSINESS_STOCK_IMAGES,
   BUSINESS_GRADIENTS,
   FONT_OPTIONS,
+  DEFAULT_TEAM_AVATARS,
 } from '../constants/presets';
 import {
   LayoutTemplate,
@@ -200,20 +201,22 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* Subtitle / Details */}
-            {slide.preset !== 'quote' && (
-              <div>
-                <label className="mb-1 block font-medium text-zinc-400">
-                  Поясняющий текст / Описание
-                </label>
-                <textarea
-                  rows={2}
-                  value={slide.content.subtitle}
-                  onChange={(e) => onUpdateContent({ subtitle: e.target.value })}
-                  placeholder="Дополнительный контекст..."
-                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
-                />
-              </div>
-            )}
+            {slide.preset !== 'quote' &&
+              slide.preset !== 'team_management' &&
+              slide.preset !== 'team_legal' && (
+                <div>
+                  <label className="mb-1 block font-medium text-zinc-400">
+                    Поясняющий текст / Описание
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={slide.content.subtitle}
+                    onChange={(e) => onUpdateContent({ subtitle: e.target.value })}
+                    placeholder="Дополнительный контекст..."
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                  />
+                </div>
+              )}
 
             {/* Quote Preset: Author Name */}
             {slide.preset === 'quote' && (
@@ -299,6 +302,206 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Team Presets: 2 Members Editor */}
+            {(slide.preset === 'team_management' || slide.preset === 'team_legal') && (
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
+                  <span className="font-semibold text-zinc-200">Карточки экспертов (2 человека)</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">9:16 стек</span>
+                </div>
+
+                {(() => {
+                  const members =
+                    slide.content.teamMembers && slide.content.teamMembers.length > 0
+                      ? slide.content.teamMembers
+                      : PRESET_DEFINITIONS[slide.preset]?.defaultContent.teamMembers || [];
+
+                  return [0, 1].map((mIdx) => {
+                    const member = members[mIdx] || {
+                      name: mIdx === 0 ? 'Эксперт 1' : 'Эксперт 2',
+                      role: 'Специализация эксперта',
+                      experience: '10+ лет',
+                      achievement: '100% аудит',
+                      achievementIcon: 'shield' as const,
+                      image: DEFAULT_TEAM_AVATARS[mIdx]?.url || './team/vladimir.webp',
+                      verified: true,
+                    };
+
+                    const handleMemberChange = (patch: Partial<typeof member>) => {
+                      const next = [...members];
+                      next[mIdx] = { ...member, ...patch };
+                      onUpdateContent({ teamMembers: next });
+                    };
+
+                    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith('image/')) {
+                        onShowToast('Пожалуйста, выберите файл изображения', false);
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        if (dataUrl) {
+                          handleMemberChange({ image: dataUrl });
+                          onShowToast(`Фото для «${member.name}» загружено`, true);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    };
+
+                    return (
+                      <div
+                        key={mIdx}
+                        className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-zinc-300 text-[11px]">
+                            {mIdx === 0 ? 'Первый эксперт' : 'Второй эксперт'}
+                          </span>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-zinc-400">
+                            <input
+                              type="checkbox"
+                              checked={member.verified !== false}
+                              onChange={(e) => handleMemberChange({ verified: e.target.checked })}
+                              className="rounded border-zinc-700 text-emerald-500 focus:ring-0"
+                            />
+                            <span>Верифицирован</span>
+                          </label>
+                        </div>
+
+                        {/* Avatar & Quick Select */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                            Фотография
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={member.image}
+                              alt={member.name}
+                              className="h-9 w-9 rounded-lg object-cover border border-white/20 bg-black shrink-0"
+                            />
+                            <div className="flex flex-wrap gap-1 flex-1">
+                              {DEFAULT_TEAM_AVATARS.map((av) => (
+                                <button
+                                  key={av.id}
+                                  type="button"
+                                  onClick={() => handleMemberChange({ image: av.url })}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] transition border ${
+                                    member.image === av.url
+                                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                                  }`}
+                                >
+                                  {av.name}
+                                </button>
+                              ))}
+                              <label className="cursor-pointer px-1.5 py-0.5 rounded text-[10px] border border-dashed border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200 flex items-center gap-1">
+                                <Upload className="h-2.5 w-2.5" />
+                                <span>Своё фото</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleAvatarUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Name */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">Имя</label>
+                          <input
+                            type="text"
+                            value={member.name}
+                            onChange={(e) => handleMemberChange({ name: e.target.value })}
+                            placeholder="Имя специалиста"
+                            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Role / Description */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                            Должность и специализация
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={member.role}
+                            onChange={(e) => handleMemberChange({ role: e.target.value })}
+                            placeholder="Описание задач и практики..."
+                            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Metrics Row */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                              Опыт (стаж)
+                            </label>
+                            <input
+                              type="text"
+                              value={member.experience || ''}
+                              onChange={(e) => handleMemberChange({ experience: e.target.value })}
+                              placeholder="15+ лет"
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                              Метрика / Результат
+                            </label>
+                            <input
+                              type="text"
+                              value={member.achievement || ''}
+                              onChange={(e) => handleMemberChange({ achievement: e.target.value })}
+                              placeholder="16 млрд ₽"
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Achievement Icon Selection */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                            Иконка метрики
+                          </label>
+                          <div className="grid grid-cols-3 gap-1">
+                            {[
+                              { id: 'shield', label: 'Щит/Капитал' },
+                              { id: 'award', label: 'Награда/Топ' },
+                              { id: 'metric', label: 'График/Аудит' },
+                            ].map((ic) => (
+                              <button
+                                key={ic.id}
+                                type="button"
+                                onClick={() =>
+                                  handleMemberChange({
+                                    achievementIcon: ic.id as 'shield' | 'award' | 'metric',
+                                  })
+                                }
+                                className={`rounded px-1.5 py-1 text-[10px] font-medium border text-center transition ${
+                                  (member.achievementIcon || 'shield') === ic.id
+                                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                                }`}
+                              >
+                                {ic.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>

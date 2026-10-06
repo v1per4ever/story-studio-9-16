@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StorySlide } from '../types/story';
+import { PRESET_DEFINITIONS } from '../constants/presets';
 import { generateQrDataUrl } from '../utils/qrcode';
 import { exportSlideToJpeg } from '../utils/export';
 import { shareSlideNative } from '../utils/share';
@@ -11,6 +12,10 @@ import {
   EyeOff,
   Maximize2,
   Minimize2,
+  Briefcase,
+  Shield,
+  Award,
+  TrendingUp,
 } from 'lucide-react';
 
 interface StoryStageProps {
@@ -559,6 +564,171 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 )}
               </div>
             )}
+
+            {/* 9. TEAM PRESETS (team_management & team_legal) */}
+            {(slide.preset === 'team_management' || slide.preset === 'team_legal') && (() => {
+              const members =
+                slide.content.teamMembers && slide.content.teamMembers.length > 0
+                  ? slide.content.teamMembers
+                  : PRESET_DEFINITIONS[slide.preset]?.defaultContent.teamMembers || [];
+
+              return (
+                <div className="flex flex-col items-center w-full px-1">
+                  {slide.content.tag && (
+                    <span
+                      contentEditable
+                      suppressContentEditableWarning
+                      onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                      className="mb-1 text-[9px] sm:text-[10px] font-mono font-bold tracking-widest uppercase text-sky-400 outline-none drop-shadow"
+                    >
+                      {slide.content.tag}
+                    </span>
+                  )}
+                  <h2
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                    className="text-center font-extrabold text-sm sm:text-base leading-snug tracking-tight text-white mb-2.5 outline-none drop-shadow"
+                    style={{
+                      fontSize: `calc(1rem * ${slide.typography.fontSizeScale})`,
+                    }}
+                  >
+                    {slide.content.title}
+                  </h2>
+
+                  {/* 2-Person Vertical Stack */}
+                  <div className="flex flex-col gap-2.5 sm:gap-3 w-full">
+                    {members.slice(0, 2).map((member, idx) => (
+                      <div
+                        key={idx}
+                        className="group relative w-full rounded-2xl overflow-hidden border border-white/20 bg-slate-950/80 backdrop-blur-md shadow-2xl p-2.5 sm:p-3 flex items-center gap-3 select-none"
+                      >
+                        {/* Member Portrait Frame */}
+                        <div className="relative w-[84px] sm:w-[94px] h-[126px] sm:h-[138px] rounded-xl overflow-hidden shrink-0 border border-white/20 shadow-md bg-slate-900">
+                          <img
+                            src={member.image}
+                            alt={member.name}
+                            className="w-full h-full object-cover object-top filter brightness-95"
+                            crossOrigin="anonymous"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+                        </div>
+
+                        {/* Dossier & Info */}
+                        <div className="flex flex-col justify-between flex-1 min-w-0 py-0.5 h-[126px] sm:h-[138px]">
+                          <div>
+                            {/* Name + Verified Badge */}
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                  const nextMembers = [...members];
+                                  if (nextMembers[idx]) {
+                                    nextMembers[idx] = {
+                                      ...nextMembers[idx],
+                                      name: e.currentTarget.textContent || '',
+                                    };
+                                    onUpdateContent({ teamMembers: nextMembers });
+                                  }
+                                }}
+                                className="font-extrabold text-sm sm:text-base tracking-tight text-white outline-none drop-shadow"
+                              >
+                                {member.name}
+                              </span>
+                              {member.verified !== false && (
+                                <svg
+                                  className="w-3.5 h-3.5 text-emerald-400 shrink-0"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                  aria-label="Подтвержденный статус"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+
+                            {/* Role / Description */}
+                            <p
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => {
+                                const nextMembers = [...members];
+                                if (nextMembers[idx]) {
+                                  nextMembers[idx] = {
+                                    ...nextMembers[idx],
+                                    role: e.currentTarget.textContent || '',
+                                  };
+                                  onUpdateContent({ teamMembers: nextMembers });
+                                }
+                              }}
+                              className="text-[10px] sm:text-[11px] text-zinc-300 mt-1 line-clamp-3 leading-snug outline-none drop-shadow"
+                            >
+                              {member.role}
+                            </p>
+                          </div>
+
+                          {/* Metrics Row */}
+                          <div className="pt-2 border-t border-white/15 mt-1 flex items-center justify-between text-zinc-300 text-[10px] sm:text-[11px] font-medium font-mono gap-1.5">
+                            <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 shrink-0">
+                              <Briefcase className="w-3 h-3 text-zinc-400 shrink-0 stroke-[2]" />
+                              <span
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                  const nextMembers = [...members];
+                                  if (nextMembers[idx]) {
+                                    nextMembers[idx] = {
+                                      ...nextMembers[idx],
+                                      experience: e.currentTarget.textContent || '',
+                                    };
+                                    onUpdateContent({ teamMembers: nextMembers });
+                                  }
+                                }}
+                                className="outline-none"
+                              >
+                                {member.experience || '10+ лет'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 shrink-0">
+                              {member.achievementIcon === 'award' ? (
+                                <Award className="w-3 h-3 text-zinc-400 shrink-0 stroke-[2]" />
+                              ) : member.achievementIcon === 'metric' ? (
+                                <TrendingUp className="w-3 h-3 text-zinc-400 shrink-0 stroke-[2]" />
+                              ) : (
+                                <Shield className="w-3 h-3 text-zinc-400 shrink-0 stroke-[2]" />
+                              )}
+                              <span
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                  const nextMembers = [...members];
+                                  if (nextMembers[idx]) {
+                                    nextMembers[idx] = {
+                                      ...nextMembers[idx],
+                                      achievement: e.currentTarget.textContent || '',
+                                    };
+                                    onUpdateContent({ teamMembers: nextMembers });
+                                  }
+                                }}
+                                className="outline-none"
+                              >
+                                {member.achievement || ''}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* QR Code Module */}
             {slide.qrcode.visible && qrDataUrl && (
