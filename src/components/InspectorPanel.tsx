@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StorySlide,
   PresetType,
@@ -34,7 +34,8 @@ interface InspectorPanelProps {
   slide: StorySlide;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
-  onChangePreset: (preset: PresetType) => void;
+  onChangePreset: (preset: PresetType, useExample?: boolean) => void;
+  onUpdateDestination: (destination: StorySlide['destination']) => void;
   onUpdateContent: (patch: Partial<SlideContent>) => void;
   onUpdateBackground: (patch: Partial<BackgroundConfig>) => void;
   onUpdateTypography: (patch: Partial<TypographyConfig>) => void;
@@ -48,6 +49,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   isOpenMobile,
   onCloseMobile,
   onChangePreset,
+  onUpdateDestination,
   onUpdateContent,
   onUpdateBackground,
   onUpdateTypography,
@@ -55,6 +57,25 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onUpdateQrCode,
   onShowToast,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isOpenMobile) return;
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseMobile();
+      if (event.key === 'Tab') {
+        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button, input:not([type="file"]), textarea, select, [tabindex="0"]');
+        if (!controls?.length) return;
+        const first = controls[0], last = controls[controls.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => { window.removeEventListener('keydown', handleKey); previous?.focus(); };
+  }, [isOpenMobile, onCloseMobile]);
+  const [presetMode, setPresetMode] = useState<'keep' | 'example'>('keep');
   const [activeTab, setActiveTab] = useState<ActiveTab>('content');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,33 +172,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         {activeTab === 'content' && (
           <div className="space-y-4">
             <div>
+              <label htmlFor="destination" className="mb-1 block text-zinc-400">Назначение кадра</label>
+              <select id="destination" value={slide.destination} onChange={(e) => onUpdateDestination(e.target.value as StorySlide['destination'])} className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm">
+                <option value="stories">Stories · запас сверху и снизу</option>
+                <option value="shorts">Shorts / Reels · запас справа и снизу</option>
+                <option value="free">Свободный макет</option>
+              </select>
+              <p className="mt-2 text-zinc-400">Маски — ориентиры компоновки, интерфейс платформ может отличаться. Экспорт: изображение 1080×1920.</p>
+            </div>
+            <div>
               <label className="mb-1.5 block font-semibold text-zinc-400">Бизнес-шаблон</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(Object.keys(PRESET_DEFINITIONS) as PresetType[]).map((pKey) => {
-                  const def = PRESET_DEFINITIONS[pKey];
-                  const isCurrent = slide.preset === pKey;
-                  return (
-                    <button
-                      key={pKey}
-                      onClick={() => onChangePreset(pKey)}
-                      className={`flex flex-col items-start rounded-lg border p-2 text-left transition ${
-                        isCurrent
-                          ? 'border-emerald-500/60 bg-emerald-500/10 text-white'
-                          : 'border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
-                      }`}
-                    >
-                      <span className="text-[11px] font-bold">{def.title}</span>
-                      <span className="line-clamp-1 text-[9px] text-zinc-400 mt-0.5">
-                        {def.description}
-                      </span>
-                    </button>
-                  );
-                })}
+              <select aria-label="Бизнес-шаблон" value={slide.preset} onChange={(e) => onChangePreset(e.target.value as PresetType, presetMode === 'example')} className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm">
+                {(Object.keys(PRESET_DEFINITIONS) as PresetType[]).map((key) => <option key={key} value={key}>{PRESET_DEFINITIONS[key].title}</option>)}
+              </select>
+              <div className="mt-2 flex gap-2">
+                <button aria-pressed={presetMode === 'keep'} className={`rounded border p-2 ${presetMode === 'keep' ? 'border-emerald-500' : 'border-zinc-700'}`} onClick={() => setPresetMode('keep')}>Сохранить текст</button>
+                <button aria-pressed={presetMode === 'example'} className={`rounded border p-2 ${presetMode === 'example' ? 'border-emerald-500' : 'border-zinc-700'}`} onClick={() => setPresetMode('example')}>Использовать пример</button>
               </div>
+              <p className="mt-2 text-xs text-zinc-400">{PRESET_DEFINITIONS[slide.preset].description}</p>
             </div>
 
             {/* Tag / Category */}
-            <div>
+            {slide.preset !== 'team_management' && slide.preset !== 'team_legal' && <div>
               <label className="mb-1 block font-medium text-zinc-400">Тег / Рубрика</label>
               <input
                 type="text"
@@ -186,7 +202,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 placeholder="Например: СТРАТЕГИЯ И РОСТ"
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
               />
-            </div>
+            </div>}
 
             {/* Title */}
             <div>
@@ -309,17 +325,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             {(slide.preset === 'team_management' || slide.preset === 'team_legal') && (
               <div className="space-y-4 pt-1">
                 <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
-                  <span className="font-semibold text-zinc-200">Карточки экспертов (2 человека)</span>
+                  <span className="font-semibold text-zinc-200">Сотрудники · 2 карточки</span>
                   <span className="text-[10px] text-zinc-500 font-mono">9:16 стек</span>
                 </div>
 
                 {(() => {
-                  const members =
-                    slide.content.teamMembers && slide.content.teamMembers.length > 0
-                      ? slide.content.teamMembers
-                      : PRESET_DEFINITIONS[slide.preset]?.defaultContent.teamMembers || [];
+                  const defaults = PRESET_DEFINITIONS[slide.preset].defaultContent.teamMembers || [];
+                  const members = [0, 1].map((index) => slide.content.teamMembers?.[index] || (index === 1 ? defaults.find((member) => member.name !== slide.content.teamMembers?.[0]?.name) : defaults[index])).filter((member) => member !== undefined);
 
-                  return [0, 1].map((mIdx) => {
+                  return members.map((_, mIdx) => {
                     const member = members[mIdx] || {
                       name: mIdx === 0 ? 'Эксперт 1' : 'Эксперт 2',
                       role: 'Специализация эксперта',
@@ -363,15 +377,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           <span className="font-bold text-zinc-300 text-[11px]">
                             {mIdx === 0 ? 'Первый эксперт' : 'Второй эксперт'}
                           </span>
-                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-zinc-400">
-                            <input
-                              type="checkbox"
-                              checked={member.verified !== false}
-                              onChange={(e) => handleMemberChange({ verified: e.target.checked })}
-                              className="rounded border-zinc-700 text-emerald-500 focus:ring-0"
-                            />
-                            <span>Верифицирован</span>
-                          </label>
+
                         </div>
 
                         {/* Avatar & Quick Select */}
@@ -468,36 +474,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                           </div>
                         </div>
 
-                        {/* Achievement Icon Selection */}
-                        <div>
-                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
-                            Иконка метрики
-                          </label>
-                          <div className="grid grid-cols-3 gap-1">
-                            {[
-                              { id: 'shield', label: 'Щит/Капитал' },
-                              { id: 'award', label: 'Награда/Топ' },
-                              { id: 'metric', label: 'График/Аудит' },
-                            ].map((ic) => (
-                              <button
-                                key={ic.id}
-                                type="button"
-                                onClick={() =>
-                                  handleMemberChange({
-                                    achievementIcon: ic.id as 'shield' | 'award' | 'metric',
-                                  })
-                                }
-                                className={`rounded px-1.5 py-1 text-[10px] font-medium border text-center transition ${
-                                  (member.achievementIcon || 'shield') === ic.id
-                                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
-                                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
-                                }`}
-                              >
-                                {ic.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
                       </div>
                     );
                   });
@@ -862,7 +838,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* QR Code Module */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
+            {slide.preset !== 'team_management' && slide.preset !== 'team_legal' && <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <label htmlFor="qr-toggle" className="font-semibold text-zinc-200 cursor-pointer">Генератор QR-кода</label>
                 <input
@@ -925,7 +901,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </>
               )}
-            </div>
+            </div>}
           </div>
         )}
       </div>
@@ -943,10 +919,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       {isOpenMobile && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/20"
             onClick={onCloseMobile}
           />
-          <div className="relative z-10 max-h-[85vh] h-[75vh] w-full rounded-t-3xl border-t border-zinc-800 bg-zinc-950 shadow-2xl safe-bottom">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Настройки слайда" tabIndex={-1} className="relative z-10 max-h-[85dvh] h-[55dvh] w-full rounded-t-3xl border-t border-zinc-800 bg-zinc-950 shadow-2xl safe-bottom">
             {panelContent}
           </div>
         </div>

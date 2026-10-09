@@ -1,4 +1,5 @@
 import React from 'react';
+import { StoryStage } from './StoryStage';
 import { StorySlide } from '../types/story';
 import { Plus, Copy, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 
@@ -24,7 +25,7 @@ export const SlideThumbnailStrip: React.FC<SlideThumbnailStripProps> = ({
   onAddSlide,
 }) => {
   return (
-    <aside className="hidden lg:flex w-64 flex-shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/60 p-4 overflow-y-auto">
+    <aside className="hidden lg:flex w-44 flex-shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/60 p-4 overflow-y-auto">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider uppercase text-zinc-400">
           Слайды ({slides.length})
@@ -47,6 +48,8 @@ export const SlideThumbnailStrip: React.FC<SlideThumbnailStripProps> = ({
           return (
             <div
               key={slide.id}
+              role="button" tabIndex={0} aria-label={`Выбрать слайд ${index + 1}`} aria-pressed={isSelected}
+              onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectSlide(slide.id); } }}
               onClick={() => onSelectSlide(slide.id)}
               className={`group relative flex cursor-pointer flex-col gap-2 rounded-xl border p-2.5 transition-all ${
                 isSelected
@@ -119,40 +122,8 @@ export const SlideThumbnailStrip: React.FC<SlideThumbnailStripProps> = ({
               </div>
 
               {/* Mini preview thumbnail */}
-              <div className="relative aspect-story w-full overflow-hidden rounded-lg bg-black border border-zinc-800/80">
-                {slide.background.type === 'image' && (
-                  <img
-                    src={slide.background.value}
-                    alt={`Слайд ${index + 1}`}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    crossOrigin="anonymous"
-                  />
-                )}
-                {slide.background.type === 'gradient' && (
-                  <div
-                    className="absolute inset-0 h-full w-full"
-                    style={{ background: slide.background.value }}
-                  />
-                )}
-                {slide.background.type === 'solid' && (
-                  <div
-                    className="absolute inset-0 h-full w-full"
-                    style={{ backgroundColor: slide.background.value }}
-                  />
-                )}
-
-                {/* Dimming */}
-                <div
-                  className="absolute inset-0 bg-black"
-                  style={{ opacity: slide.background.dim / 100 }}
-                />
-
-                {/* Minimal preview text */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
-                  <span className="line-clamp-2 text-[9px] font-bold text-white/90">
-                    {slide.content.title || 'Без названия'}
-                  </span>
-                </div>
+              <div className="overflow-hidden rounded-lg">
+                <StoryStage thumbnailWidth={120} slide={slide} slideIndex={index} totalSlides={slides.length} onUpdateContent={() => {}} onUpdateBrandingText={() => {}} onShowToast={() => {}} />
               </div>
             </div>
           );

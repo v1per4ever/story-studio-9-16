@@ -245,6 +245,7 @@ export const INITIAL_SLIDES: StorySlide[] = [
       ...PRESET_DEFINITIONS.editorial.defaultContent,
     },
     showCounter: true,
+    destination: 'stories',
   },
   {
     id: 'slide-2',
@@ -283,6 +284,7 @@ export const INITIAL_SLIDES: StorySlide[] = [
       ...PRESET_DEFINITIONS.quote.defaultContent,
     },
     showCounter: true,
+    destination: 'stories',
   },
   {
     id: 'slide-3',
@@ -321,5 +323,6 @@ export const INITIAL_SLIDES: StorySlide[] = [
       ...PRESET_DEFINITIONS.metric.defaultContent,
     },
     showCounter: true,
+    destination: 'stories',
   },
 ];

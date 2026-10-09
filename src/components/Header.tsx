@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
         {/* Brand / Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-sm">
+          <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-sm">
             <Sparkles className="h-4 w-4 text-emerald-400" />
           </div>
           <div>

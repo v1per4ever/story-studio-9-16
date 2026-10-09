@@ -6,16 +6,23 @@ import { StoryStage } from './components/StoryStage';
 import { InspectorPanel } from './components/InspectorPanel';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { Toast } from './components/Toast';
+import { z } from 'zod';
+import { StorySlideSchema } from './types/story';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { exportAllSlidesToZip } from './utils/export';
 
 export function App() {
   const {
     slides,
+    storageReady,
+    saveStatus,
     selectedSlideId,
     selectedSlide,
     selectedIndex,
     setSelectedSlideId,
     updateContent,
+    updateSlide,
     updateBackground,
     updateTypography,
     updateBranding,
@@ -26,6 +33,7 @@ export function App() {
     deleteSlide,
     reorderSlides,
     resetToDefault,
+    importProject,
     undo,
     redo,
     canUndo,
@@ -40,6 +48,12 @@ export function App() {
   const showToast = useCallback((message: string, isSuccess: boolean = true) => {
     setToast({ message, isSuccess });
   }, []);
+
+  useEffect(() => {
+    const onError = () => showToast('Не удалось сохранить проект. Сохраните копию проекта в файл.', false);
+    window.addEventListener('story-storage-error', onError);
+    return () => window.removeEventListener('story-storage-error', onError);
+  }, [showToast]);
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -60,6 +74,8 @@ export function App() {
         (activeEl.tagName === 'INPUT' ||
           activeEl.tagName === 'TEXTAREA' ||
           activeEl.getAttribute('contenteditable') === 'true');
+
+      if (isInput) return;
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
         if (e.shiftKey) {
@@ -107,35 +123,32 @@ export function App() {
     try {
       // Temporarily cycle through all slides to capture their DOM elements,
       // or export the current stage sequentially by selecting them
-      const elementsToExport: { id: string; element: HTMLElement; index: number }[] = [];
-
-      for (let i = 0; i < slides.length; i++) {
-        const slideItem = slides[i];
-        if (!slideItem) continue;
-        setSelectedSlideId(slideItem.id);
-        setExportProgress({ current: i + 1, total: slides.length });
-
-        // Wait for React to render stage with current slide
-        await new Promise((res) => setTimeout(res, 350));
-
-        const stageEl = document.getElementById(`viewport-${slideItem.id}`);
-        if (stageEl) {
-          elementsToExport.push({
-            id: slideItem.id,
-            element: stageEl,
-            index: i,
-          });
+      const container = document.createElement('div');
+      container.style.cssText = 'position:fixed;left:-10000px;top:0;width:600px;height:900px;';
+      document.body.appendChild(container);
+      const root = createRoot(container);
+      try {
+        const elementsToExport: { id: string; element: HTMLElement; index: number }[] = [];
+        // Keep every canvas mounted until the archive is complete.
+        flushSync(() => root.render(<>{slides.map((slide, index) => (
+          <StoryStage key={slide.id} slide={slide} slideIndex={index} totalSlides={slides.length}
+            onUpdateContent={() => {}} onUpdateBrandingText={() => {}} onShowToast={() => {}} />
+        ))}</>));
+        for (let index = 0; index < slides.length; index++) {
+          const element = container.querySelector<HTMLElement>(`[id="viewport-${slides[index].id}"]`);
+          if (!element) throw new Error('Не найден холст слайда');
+          elementsToExport.push({ id: slides[index].id, element, index });
         }
+        await exportAllSlidesToZip(elementsToExport, (current, total) => setExportProgress({ current, total }));
+      } finally {
+        root.unmount();
+        container.remove();
       }
-
-      await exportAllSlidesToZip(elementsToExport, (current, total) => {
-        setExportProgress({ current, total });
-      });
 
       showToast(`Все ${slides.length} историй успешно сохранены в ZIP!`, true);
     } catch (err) {
       console.error('ZIP export error:', err);
-      showToast('Ошибка при пакетном экспорте архива', false);
+      showToast(err instanceof Error ? err.message : 'Ошибка при пакетном экспорте архива', false);
     } finally {
       setIsExportingZip(false);
       setExportProgress(null);
@@ -155,6 +168,8 @@ export function App() {
       if (next) setSelectedSlideId(next.id);
     }
   };
+
+  if (!storageReady) return <div className="flex h-[100dvh] items-center justify-center bg-zinc-950 text-zinc-200" role="status">Загрузка проекта…</div>;
 
   return (
     <div className="flex h-[100dvh] w-full flex-col bg-zinc-950 text-zinc-100 overflow-hidden select-none">
@@ -182,6 +197,25 @@ export function App() {
         isMobileInspectorOpen={isMobileInspectorOpen}
       />
 
+      <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3 px-4 py-1 text-xs text-zinc-400 bg-zinc-950/80 border-b border-zinc-900/60">
+        <span role="status">{saveStatus === 'saved' ? 'Сохранено на устройстве' : saveStatus === 'error' ? 'Ошибка сохранения' : 'Сохранение…'}</span>
+        <label className="cursor-pointer underline underline-offset-2">Открыть проект
+          <input type="file" accept=".json,application/json" className="sr-only" aria-label="Открыть проект" onChange={async (event) => {
+            const file = event.target.files?.[0]; if (!file) return;
+            try {
+              const parsed = z.array(StorySlideSchema).min(1).parse(JSON.parse(await file.text()));
+              if (new Set(parsed.map((slide) => slide.id)).size !== parsed.length) throw new Error('Повторяющиеся ID');
+              importProject(parsed); showToast('Проект открыт. Предыдущий проект можно вернуть кнопкой отмены.');
+            } catch { showToast('Не удалось открыть файл проекта', false); }
+            event.target.value = '';
+          }} />
+        </label>
+        <button className="underline underline-offset-2" onClick={() => {
+          const url = URL.createObjectURL(new Blob([JSON.stringify(slides, null, 2)], {type: 'application/json'}));
+          const link = document.createElement('a'); link.href = url; link.download = 'story-project.json'; link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }}>Сохранить проект</button>
+      </div>
       {/* Main Studio Workspace */}
       <main className="flex flex-1 overflow-hidden relative">
         {/* Left Side: Thumbnail Strip (Desktop) */}
@@ -221,10 +255,11 @@ export function App() {
           slide={selectedSlide}
           isOpenMobile={isMobileInspectorOpen}
           onCloseMobile={() => setIsMobileInspectorOpen(false)}
-          onChangePreset={(preset) => {
-            changePreset(selectedSlide.id, preset);
+          onChangePreset={(preset, useExample) => {
+            changePreset(selectedSlide.id, preset, useExample);
             showToast('Шаблон изменен');
           }}
+          onUpdateDestination={(destination) => updateSlide(selectedSlide.id, (previous) => ({ ...previous, destination }))}
           onUpdateContent={(patch) => updateContent(selectedSlide.id, patch)}
           onUpdateBackground={(patch) => updateBackground(selectedSlide.id, patch)}
           onUpdateTypography={(patch) => updateTypography(selectedSlide.id, patch)}

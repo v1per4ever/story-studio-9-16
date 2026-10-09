@@ -92,6 +92,7 @@ export const StorySlideSchema = z.object({
   qrcode: QrCodeConfigSchema,
   content: SlideContentSchema,
   showCounter: z.boolean(),
+  destination: z.enum(['stories', 'shorts', 'free']).default('stories'),
 });
 
 export type StorySlide = z.infer<typeof StorySlideSchema>;
