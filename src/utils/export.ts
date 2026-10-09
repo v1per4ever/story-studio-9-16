@@ -1,16 +1,41 @@
-import { toJpeg, toBlob } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import JSZip from 'jszip';
+import { fitStoryContent } from './layout';
+
+async function prepareCanvas(element: HTMLElement): Promise<void> {
+  await document.fonts.ready;
+  await new Promise<void>((resolve, reject) => {
+    const ready = () => {
+      if (element.hasAttribute('data-qr-error')) { finish(new Error('Не удалось создать QR-код. Проверьте ссылку.')); }
+      else if (!element.hasAttribute('data-qr-pending')) { finish(); }
+    };
+    const observer = new MutationObserver(ready);
+    const timer = setTimeout(() => finish(new Error('QR-код не готов. Повторите экспорт.')), 10000);
+    const finish = (error?: Error) => { observer.disconnect(); clearTimeout(timer); error ? reject(error) : resolve(); };
+    observer.observe(element, { attributes: true });
+    ready();
+  });
+  await Promise.all(Array.from(element.querySelectorAll('img')).map(async (image) => {
+    try { await image.decode(); } catch { throw new Error('Не удалось загрузить изображение слайда'); }
+  }));
+  await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  const content = element.querySelector<HTMLElement>('[data-story-content]');
+  const body = content?.querySelector<HTMLElement>('[data-content-body]');
+  if (content && body && fitStoryContent(content, body).overflow) {
+    throw new Error('Контент не помещается в кадр. Сократите текст или уменьшите размер шрифта.');
+  }
+}
 
 export async function exportSlideToJpeg(element: HTMLElement, filename: string): Promise<void> {
-  if (document.fonts) {
-    await document.fonts.ready;
-  }
+  await prepareCanvas(element);
 
-  const currentWidth = element.offsetWidth;
+  const currentWidth = element.offsetWidth || 360;
   const targetWidth = 1080;
   const pixelRatio = targetWidth / currentWidth;
 
   const dataUrl = await toJpeg(element, {
+    filter: (node) => !(node instanceof HTMLElement && node.hasAttribute('data-editor-only')),
+    width: 360, height: 640, style: { transform: 'none', boxShadow: 'none' },
     quality: 0.95,
     pixelRatio: pixelRatio,
     cacheBust: true,
@@ -26,20 +51,18 @@ export async function exportSlideToJpeg(element: HTMLElement, filename: string):
 }
 
 export async function getSlideBlob(element: HTMLElement): Promise<Blob | null> {
-  if (document.fonts) {
-    await document.fonts.ready;
-  }
+  await prepareCanvas(element);
 
-  const currentWidth = element.offsetWidth;
+  const currentWidth = element.offsetWidth || 360;
   const targetWidth = 1080;
   const pixelRatio = targetWidth / currentWidth;
 
-  return await toBlob(element, {
-    quality: 0.95,
-    pixelRatio: pixelRatio,
-    cacheBust: true,
-    backgroundColor: '#000000',
+  const dataUrl = await toJpeg(element, {
+    width: 360, height: 640, style: { transform: 'none', boxShadow: 'none' },
+    quality: 0.95, pixelRatio, cacheBust: true, backgroundColor: '#000000',
+    filter: (node) => !(node instanceof HTMLElement && node.hasAttribute('data-editor-only')),
   });
+  return await (await fetch(dataUrl)).blob();
 }
 
 export async function exportAllSlidesToZip(

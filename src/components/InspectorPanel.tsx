@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StorySlide,
   PresetType,
@@ -14,6 +14,7 @@ import {
   BUSINESS_STOCK_IMAGES,
   BUSINESS_GRADIENTS,
   FONT_OPTIONS,
+  DEFAULT_TEAM_AVATARS,
 } from '../constants/presets';
 import {
   LayoutTemplate,
@@ -33,7 +34,8 @@ interface InspectorPanelProps {
   slide: StorySlide;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
-  onChangePreset: (preset: PresetType) => void;
+  onChangePreset: (preset: PresetType, useExample?: boolean) => void;
+  onUpdateDestination: (destination: StorySlide['destination']) => void;
   onUpdateContent: (patch: Partial<SlideContent>) => void;
   onUpdateBackground: (patch: Partial<BackgroundConfig>) => void;
   onUpdateTypography: (patch: Partial<TypographyConfig>) => void;
@@ -47,6 +49,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   isOpenMobile,
   onCloseMobile,
   onChangePreset,
+  onUpdateDestination,
   onUpdateContent,
   onUpdateBackground,
   onUpdateTypography,
@@ -54,6 +57,25 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onUpdateQrCode,
   onShowToast,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isOpenMobile) return;
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseMobile();
+      if (event.key === 'Tab') {
+        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button, input:not([type="file"]), textarea, select, [tabindex="0"]');
+        if (!controls?.length) return;
+        const first = controls[0], last = controls[controls.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => { window.removeEventListener('keydown', handleKey); previous?.focus(); };
+  }, [isOpenMobile, onCloseMobile]);
+  const [presetMode, setPresetMode] = useState<'keep' | 'example'>('keep');
   const [activeTab, setActiveTab] = useState<ActiveTab>('content');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,33 +172,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         {activeTab === 'content' && (
           <div className="space-y-4">
             <div>
+              <label htmlFor="destination" className="mb-1 block text-zinc-400">Назначение кадра</label>
+              <select id="destination" value={slide.destination} onChange={(e) => onUpdateDestination(e.target.value as StorySlide['destination'])} className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm">
+                <option value="stories">Stories · запас сверху и снизу</option>
+                <option value="shorts">Shorts / Reels · запас справа и снизу</option>
+                <option value="free">Свободный макет</option>
+              </select>
+              <p className="mt-2 text-zinc-400">Маски — ориентиры компоновки, интерфейс платформ может отличаться. Экспорт: изображение 1080×1920.</p>
+            </div>
+            <div>
               <label className="mb-1.5 block font-semibold text-zinc-400">Бизнес-шаблон</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(Object.keys(PRESET_DEFINITIONS) as PresetType[]).map((pKey) => {
-                  const def = PRESET_DEFINITIONS[pKey];
-                  const isCurrent = slide.preset === pKey;
-                  return (
-                    <button
-                      key={pKey}
-                      onClick={() => onChangePreset(pKey)}
-                      className={`flex flex-col items-start rounded-lg border p-2 text-left transition ${
-                        isCurrent
-                          ? 'border-emerald-500/60 bg-emerald-500/10 text-white'
-                          : 'border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
-                      }`}
-                    >
-                      <span className="text-[11px] font-bold">{def.title}</span>
-                      <span className="line-clamp-1 text-[9px] text-zinc-400 mt-0.5">
-                        {def.description}
-                      </span>
-                    </button>
-                  );
-                })}
+              <select aria-label="Бизнес-шаблон" value={slide.preset} onChange={(e) => onChangePreset(e.target.value as PresetType, presetMode === 'example')} className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm">
+                {(Object.keys(PRESET_DEFINITIONS) as PresetType[]).map((key) => <option key={key} value={key}>{PRESET_DEFINITIONS[key].title}</option>)}
+              </select>
+              <div className="mt-2 flex gap-2">
+                <button aria-pressed={presetMode === 'keep'} className={`rounded border p-2 ${presetMode === 'keep' ? 'border-emerald-500' : 'border-zinc-700'}`} onClick={() => setPresetMode('keep')}>Сохранить текст</button>
+                <button aria-pressed={presetMode === 'example'} className={`rounded border p-2 ${presetMode === 'example' ? 'border-emerald-500' : 'border-zinc-700'}`} onClick={() => setPresetMode('example')}>Использовать пример</button>
               </div>
+              <p className="mt-2 text-xs text-zinc-400">{PRESET_DEFINITIONS[slide.preset].description}</p>
             </div>
 
             {/* Tag / Category */}
-            <div>
+            {slide.preset !== 'team_management' && slide.preset !== 'team_legal' && <div>
               <label className="mb-1 block font-medium text-zinc-400">Тег / Рубрика</label>
               <input
                 type="text"
@@ -185,7 +202,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 placeholder="Например: СТРАТЕГИЯ И РОСТ"
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
               />
-            </div>
+            </div>}
 
             {/* Title */}
             <div>
@@ -200,20 +217,22 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* Subtitle / Details */}
-            {slide.preset !== 'quote' && (
-              <div>
-                <label className="mb-1 block font-medium text-zinc-400">
-                  Поясняющий текст / Описание
-                </label>
-                <textarea
-                  rows={2}
-                  value={slide.content.subtitle}
-                  onChange={(e) => onUpdateContent({ subtitle: e.target.value })}
-                  placeholder="Дополнительный контекст..."
-                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
-                />
-              </div>
-            )}
+            {slide.preset !== 'quote' &&
+              slide.preset !== 'team_management' &&
+              slide.preset !== 'team_legal' && (
+                <div>
+                  <label className="mb-1 block font-medium text-zinc-400">
+                    Поясняющий текст / Описание
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={slide.content.subtitle}
+                    onChange={(e) => onUpdateContent({ subtitle: e.target.value })}
+                    placeholder="Дополнительный контекст..."
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                  />
+                </div>
+              )}
 
             {/* Quote Preset: Author Name */}
             {slide.preset === 'quote' && (
@@ -299,6 +318,166 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Team Presets: 2 Members Editor */}
+            {(slide.preset === 'team_management' || slide.preset === 'team_legal') && (
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
+                  <span className="font-semibold text-zinc-200">Сотрудники · 2 карточки</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">9:16 стек</span>
+                </div>
+
+                {(() => {
+                  const defaults = PRESET_DEFINITIONS[slide.preset].defaultContent.teamMembers || [];
+                  const members = [0, 1].map((index) => slide.content.teamMembers?.[index] || (index === 1 ? defaults.find((member) => member.name !== slide.content.teamMembers?.[0]?.name) : defaults[index])).filter((member) => member !== undefined);
+
+                  return members.map((_, mIdx) => {
+                    const member = members[mIdx] || {
+                      name: mIdx === 0 ? 'Эксперт 1' : 'Эксперт 2',
+                      role: 'Специализация эксперта',
+                      experience: '10+ лет',
+                      achievement: '100% аудит',
+                      achievementIcon: 'shield' as const,
+                      image: DEFAULT_TEAM_AVATARS[mIdx]?.url || './team/vladimir.webp',
+                      verified: true,
+                    };
+
+                    const handleMemberChange = (patch: Partial<typeof member>) => {
+                      const next = [...members];
+                      next[mIdx] = { ...member, ...patch };
+                      onUpdateContent({ teamMembers: next });
+                    };
+
+                    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith('image/')) {
+                        onShowToast('Пожалуйста, выберите файл изображения', false);
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        if (dataUrl) {
+                          handleMemberChange({ image: dataUrl });
+                          onShowToast(`Фото для «${member.name}» загружено`, true);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    };
+
+                    return (
+                      <div
+                        key={mIdx}
+                        className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-zinc-300 text-[11px]">
+                            {mIdx === 0 ? 'Первый эксперт' : 'Второй эксперт'}
+                          </span>
+
+                        </div>
+
+                        {/* Avatar & Quick Select */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                            Фотография
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={member.image}
+                              alt={member.name}
+                              className="h-9 w-9 rounded-lg object-cover border border-white/20 bg-black shrink-0"
+                            />
+                            <div className="flex flex-wrap gap-1 flex-1">
+                              {DEFAULT_TEAM_AVATARS.map((av) => (
+                                <button
+                                  key={av.id}
+                                  type="button"
+                                  onClick={() => handleMemberChange({ image: av.url })}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] transition border ${
+                                    member.image === av.url
+                                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                                  }`}
+                                >
+                                  {av.name}
+                                </button>
+                              ))}
+                              <label className="cursor-pointer px-1.5 py-0.5 rounded text-[10px] border border-dashed border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200 flex items-center gap-1">
+                                <Upload className="h-2.5 w-2.5" />
+                                <span>Своё фото</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleAvatarUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Name */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">Имя</label>
+                          <input
+                            type="text"
+                            value={member.name}
+                            onChange={(e) => handleMemberChange({ name: e.target.value })}
+                            placeholder="Имя специалиста"
+                            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Role / Description */}
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                            Должность и специализация
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={member.role}
+                            onChange={(e) => handleMemberChange({ role: e.target.value })}
+                            placeholder="Описание задач и практики..."
+                            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Metrics Row */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                              Опыт (стаж)
+                            </label>
+                            <input
+                              type="text"
+                              value={member.experience || ''}
+                              onChange={(e) => handleMemberChange({ experience: e.target.value })}
+                              placeholder="15+ лет"
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                              Метрика / Результат
+                            </label>
+                            <input
+                              type="text"
+                              value={member.achievement || ''}
+                              onChange={(e) => handleMemberChange({ achievement: e.target.value })}
+                              placeholder="16 млрд ₽"
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
@@ -659,7 +838,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* QR Code Module */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
+            {slide.preset !== 'team_management' && slide.preset !== 'team_legal' && <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <label htmlFor="qr-toggle" className="font-semibold text-zinc-200 cursor-pointer">Генератор QR-кода</label>
                 <input
@@ -722,7 +901,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   </div>
                 </>
               )}
-            </div>
+            </div>}
           </div>
         )}
       </div>
@@ -740,10 +919,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       {isOpenMobile && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/20"
             onClick={onCloseMobile}
           />
-          <div className="relative z-10 max-h-[85vh] h-[75vh] w-full rounded-t-3xl border-t border-zinc-800 bg-zinc-950 shadow-2xl safe-bottom">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Настройки слайда" tabIndex={-1} className="relative z-10 max-h-[85dvh] h-[55dvh] w-full rounded-t-3xl border-t border-zinc-800 bg-zinc-950 shadow-2xl safe-bottom">
             {panelContent}
           </div>
         </div>

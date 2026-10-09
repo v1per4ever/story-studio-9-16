@@ -9,6 +9,8 @@ export const PresetTypeSchema = z.enum([
   'announcement',
   'checklist',
   'product',
+  'team_management',
+  'team_legal',
 ]);
 
 export type PresetType = z.infer<typeof PresetTypeSchema>;
@@ -55,6 +57,18 @@ export const QrCodeConfigSchema = z.object({
 
 export type QrCodeConfig = z.infer<typeof QrCodeConfigSchema>;
 
+export const TeamMemberSchema = z.object({
+  name: z.string(),
+  role: z.string(),
+  experience: z.string().optional(),
+  achievement: z.string().optional(),
+  achievementIcon: z.enum(['capital', 'award', 'metric', 'shield']).optional(),
+  image: z.string(),
+  verified: z.boolean().default(true),
+});
+
+export type TeamMember = z.infer<typeof TeamMemberSchema>;
+
 export const SlideContentSchema = z.object({
   tag: z.string(),
   title: z.string(),
@@ -64,6 +78,7 @@ export const SlideContentSchema = z.object({
   price: z.string().optional(),
   checklistItems: z.array(z.string()).optional(),
   customHtml: z.string().optional(),
+  teamMembers: z.array(TeamMemberSchema).optional(),
 });
 
 export type SlideContent = z.infer<typeof SlideContentSchema>;
@@ -77,6 +92,7 @@ export const StorySlideSchema = z.object({
   qrcode: QrCodeConfigSchema,
   content: SlideContentSchema,
   showCounter: z.boolean(),
+  destination: z.enum(['stories', 'shorts', 'free']).default('stories'),
 });
 
 export type StorySlide = z.infer<typeof StorySlideSchema>;

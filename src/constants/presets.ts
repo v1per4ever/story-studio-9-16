@@ -1,4 +1,4 @@
-import { StorySlide, PresetType } from '../types/story';
+import { StorySlide, PresetType, TeamMember } from '../types/story';
 
 export const BUSINESS_STOCK_IMAGES = [
   'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1080&q=80', // Skyscraper modern
@@ -44,6 +44,7 @@ export interface PresetInfo {
     authorName?: string;
     price?: string;
     checklistItems?: string[];
+    teamMembers?: TeamMember[];
   };
 }
 
@@ -126,7 +127,7 @@ export const PRESET_DEFINITIONS: Record<PresetType, PresetInfo> = {
       ],
     },
   },
-  product: {
+    product: {
     id: 'product',
     title: 'Карточка оффера',
     description: 'Презентация услуги или товара с фиксированной ценой и выгодой',
@@ -137,7 +138,74 @@ export const PRESET_DEFINITIONS: Record<PresetType, PresetInfo> = {
       price: 'от 45 000 ₽',
     },
   },
+  team_management: {
+    id: 'team_management',
+    title: 'Команда: Управление',
+    description: 'Два эксперта: арбитражное и антикризисное управление (Владимир и Алексей)',
+    defaultContent: {
+      tag: '// 05. ЭКСПЕРТИЗА И КОМАНДА',
+      title: 'Команда экспертов доверительного управления',
+      subtitle: '',
+      teamMembers: [
+        {
+          name: 'Владимир',
+          role: 'Арбитражный управляющий. Разрешение споров и поиск профильных инвесторов.',
+          experience: '15+ лет',
+          achievement: '16 млрд ₽',
+          achievementIcon: 'shield',
+          image: './team/vladimir.webp',
+          verified: true,
+        },
+        {
+          name: 'Алексей',
+          role: 'Антикризисный управляющий. Оздоровление активов и сопровождение сделок.',
+          experience: '15+ лет',
+          achievement: 'CRE Top',
+          achievementIcon: 'award',
+          image: './team/alexey.webp',
+          verified: true,
+        },
+      ],
+    },
+  },
+  team_legal: {
+    id: 'team_legal',
+    title: 'Команда: Право и аудит',
+    description: 'Два специалиста: правовая практика и финансовый аудит (Анна и Кирилл)',
+    defaultContent: {
+      tag: '// 05. ЭКСПЕРТИЗА И КОМАНДА',
+      title: 'Команда экспертов доверительного управления',
+      subtitle: '',
+      teamMembers: [
+        {
+          name: 'Анна',
+          role: 'Руководитель правовой практики. Комплексный аудит и защита учредителей.',
+          experience: '12+ лет',
+          achievement: '1+ млрд ₽',
+          achievementIcon: 'shield',
+          image: './team/anna.webp',
+          verified: true,
+        },
+        {
+          name: 'Кирилл',
+          role: 'Системный аналитик. Финансовый аудит, сквозная оцифровка и контроль рисков.',
+          experience: '10+ лет',
+          achievement: '100% аудит',
+          achievementIcon: 'metric',
+          image: './team/kirill.webp',
+          verified: true,
+        },
+      ],
+    },
+  },
 };
+
+export const DEFAULT_TEAM_AVATARS = [
+  { id: 'vladimir', name: 'Владимир', url: './team/vladimir.webp' },
+  { id: 'alexey', name: 'Алексей', url: './team/alexey.webp' },
+  { id: 'anna', name: 'Анна', url: './team/anna.webp' },
+  { id: 'kirill', name: 'Кирилл', url: './team/kirill.webp' },
+];
 
 export const INITIAL_SLIDES: StorySlide[] = [
   {
@@ -177,6 +245,7 @@ export const INITIAL_SLIDES: StorySlide[] = [
       ...PRESET_DEFINITIONS.editorial.defaultContent,
     },
     showCounter: true,
+    destination: 'stories',
   },
   {
     id: 'slide-2',
@@ -215,6 +284,7 @@ export const INITIAL_SLIDES: StorySlide[] = [
       ...PRESET_DEFINITIONS.quote.defaultContent,
     },
     showCounter: true,
+    destination: 'stories',
   },
   {
     id: 'slide-3',
@@ -253,5 +323,6 @@ export const INITIAL_SLIDES: StorySlide[] = [
       ...PRESET_DEFINITIONS.metric.defaultContent,
     },
     showCounter: true,
+    destination: 'stories',
   },
 ];

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StorySlide } from '../types/story';
+import { PRESET_DEFINITIONS } from '../constants/presets';
 import { generateQrDataUrl } from '../utils/qrcode';
+import { fitStoryContent } from '../utils/layout';
 import { exportSlideToJpeg } from '../utils/export';
 import { shareSlideNative } from '../utils/share';
 import {
@@ -14,6 +16,7 @@ import {
 } from 'lucide-react';
 
 interface StoryStageProps {
+  thumbnailWidth?: number;
   slide: StorySlide;
   slideIndex: number;
   totalSlides: number;
@@ -24,35 +27,68 @@ interface StoryStageProps {
 
 export const StoryStage: React.FC<StoryStageProps> = ({
   slide,
+  thumbnailWidth,
   slideIndex,
   totalSlides,
   onUpdateContent,
   onUpdateBrandingText,
   onShowToast,
 }) => {
+  const availableRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
+  useEffect(() => {
+    const container = availableRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      setFitScale(Math.max(0.1, Math.min(container.clientWidth / 360, container.clientHeight / 640, 1)));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const [qrResult, setQrResult] = useState({ source: '', data: '', failed: false });
+  const qrDataUrl = qrResult.source === slide.qrcode.url ? qrResult.data : '';
   const stageRef = useRef<HTMLDivElement>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [contentFit, setContentFit] = useState(1);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const content = stageRef.current?.querySelector<HTMLElement>('[data-story-content]');
+    const body = content?.querySelector<HTMLElement>('[data-content-body]');
+    if (!content || !body) return;
+    const check = () => {
+      const result = fitStoryContent(content, body);
+      setContentFit(result.fit);
+      setOverflowing(result.overflow);
+    };
+    const observer = new ResizeObserver(check);
+    observer.observe(content);
+    const frame = requestAnimationFrame(check);
+    document.fonts.ready.then(check);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [slide, fitScale, qrDataUrl]);
   const [showSafeZones, setShowSafeZones] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [stageScale, setStageScale] = useState<'fit' | '100%'>('fit');
 
-  // Generate QR code if visible
+  const isTeam = slide.preset === 'team_management' || slide.preset === 'team_legal';
+
+  // Generate QR code only for templates that render it
   useEffect(() => {
     let isCancelled = false;
-    if (slide.qrcode.visible && slide.qrcode.url) {
+    if (!isTeam && slide.qrcode.visible && slide.qrcode.url) {
       generateQrDataUrl(slide.qrcode.url).then((url) => {
         if (!isCancelled) {
-          setQrDataUrl(url);
+          setQrResult({ source: slide.qrcode.url, data: url, failed: !url });
         }
       });
     } else {
-      setQrDataUrl('');
+      setQrResult({ source: '', data: '', failed: false });
     }
     return () => {
       isCancelled = true;
     };
-  }, [slide.qrcode.visible, slide.qrcode.url]);
+  }, [isTeam, slide.qrcode.visible, slide.qrcode.url]);
 
   const slideNumber = String(slideIndex + 1).padStart(2, '0');
 
@@ -66,7 +102,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
       onShowToast(`Слайд #${slideIndex + 1} успешно сохранен в JPG!`, true);
     } catch (err) {
       console.error('Download error:', err);
-      onShowToast('Не удалось экспортировать изображение', false);
+      onShowToast(err instanceof Error ? err.message : 'Не удалось экспортировать изображение', false);
     } finally {
       setIsExporting(false);
     }
@@ -81,67 +117,29 @@ export const StoryStage: React.FC<StoryStageProps> = ({
       onShowToast(result.message, result.success);
     } catch (err) {
       console.error('Share error:', err);
-      onShowToast('Ошибка при попытке поделиться', false);
+      onShowToast(err instanceof Error ? err.message : 'Ошибка при попытке поделиться', false);
     } finally {
       setIsSharing(false);
     }
   };
 
-  return (
-    <div className="relative flex flex-1 flex-col items-center justify-between p-3 sm:p-6 overflow-y-auto overflow-x-hidden">
-      {/* Top stage toolbar */}
-      <div className="mb-3 flex w-full max-w-[340px] sm:max-w-[380px] items-center justify-between text-xs text-zinc-400">
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-zinc-200">
-            Слайд {slideIndex + 1} из {totalSlides}
-          </span>
-          <span className="text-zinc-600">•</span>
-          <span className="font-mono text-[11px] text-zinc-400">9:16</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Safe Zones Toggle */}
-          <button
-            onClick={() => setShowSafeZones(!showSafeZones)}
-            title="Показать безопасные зоны для Instagram/Telegram Stories"
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition ${
-              showSafeZones
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            {showSafeZones ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            <span className="hidden sm:inline">Безопасные зоны</span>
-          </button>
-
-          {/* Scale Toggle */}
-          <button
-            onClick={() => setStageScale(stageScale === 'fit' ? '100%' : 'fit')}
-            title="Масштаб отображения"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
-          >
-            {stageScale === 'fit' ? (
-              <Maximize2 className="h-3 w-3" />
-            ) : (
-              <Minimize2 className="h-3 w-3" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Canvas Viewport Container */}
-      <div className="relative flex w-full flex-1 items-center justify-center py-1">
+  // Design margins, shared by the layout and its guide (canonical 360×640 canvas).
+  const margins = slide.destination === 'shorts'
+    ? { top: 64, bottom: 160, left: 20, right: 60 }
+    : slide.destination === 'free'
+    ? { top: 24, bottom: 24, left: 24, right: 24 }
+    : { top: 90, bottom: 128, left: 24, right: 24 };
+  const canvas = (
+        <div style={{ width: 360 * (thumbnailWidth ? thumbnailWidth / 360 : stageScale === 'fit' ? fitScale : 1), height: 640 * (thumbnailWidth ? thumbnailWidth / 360 : stageScale === 'fit' ? fitScale : 1), flexShrink: 0 }}>
         <div
           ref={stageRef}
-          id={`viewport-${slide.id}`}
-          className={`relative aspect-story overflow-hidden rounded-[26px] bg-black select-none shadow-2xl transition-all duration-200 ${
-            stageScale === 'fit'
-              ? 'w-full max-w-[320px] sm:max-w-[360px] md:max-w-[380px]'
-              : 'w-full max-w-[420px]'
-          }`}
-          style={{
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08)',
-          }}
+          id={`${thumbnailWidth ? "thumbnail" : "viewport"}-${slide.id}`}
+          data-qr-pending={!isTeam && slide.qrcode.visible && slide.qrcode.url.trim() && !qrDataUrl ? true : undefined}
+          data-qr-error={qrResult.source === slide.qrcode.url && qrResult.failed ? true : undefined}
+          data-layout-overflow={overflowing ? true : undefined}
+          data-dense={slide.destination === 'shorts' ? true : undefined}
+          className="story-canvas relative overflow-hidden bg-black shadow-2xl"
+          style={{ width: 360, height: 640, transform: `scale(${thumbnailWidth ? thumbnailWidth / 360 : stageScale === 'fit' ? fitScale : 1})`, transformOrigin: 'top left', fontFamily: slide.typography.fontFamily, color: slide.typography.textColor, '--story-text': slide.typography.textColor, '--story-accent': slide.typography.tagColor, '--story-font-scale': slide.typography.fontSizeScale, '--story-align': slide.typography.align } as React.CSSProperties}
         >
           {/* Layer 1: Background Element */}
           {slide.background.type === 'image' && (
@@ -180,9 +178,11 @@ export const StoryStage: React.FC<StoryStageProps> = ({
           {/* Layer 3: Atmospheric Vignette */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/35 pointer-events-none" />
 
+          <div data-story-layout className="absolute z-20 grid gap-3" style={{ top: margins.top, bottom: margins.bottom, left: margins.left, right: margins.right, gridTemplateRows: `${isTeam ? '0px' : 'auto'} minmax(0, 1fr) auto` }}>
+          <header data-story-header className={isTeam ? "hidden" : "flex items-center gap-2 min-h-6"}>
           {/* Layer 4: Top Slide Counter */}
-          {slide.showCounter && (
-            <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between text-xs pointer-events-none">
+          {!isTeam && slide.showCounter && (
+            <div className="flex items-center text-xs">
               <span className="glass-panel rounded-full px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase text-white/90 border border-white/10">
                 {slideNumber} / ИСТОРИЯ
               </span>
@@ -190,16 +190,16 @@ export const StoryStage: React.FC<StoryStageProps> = ({
           )}
 
           {/* Layer 5: Top Branding Position (optional) */}
-          {slide.branding.visible && slide.branding.position === 'top' && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+          {!isTeam && slide.branding.visible && slide.branding.position === 'top' && (
+            <div className="ml-auto min-w-0">
               <div className="glass-badge rounded-full px-3.5 py-1 flex items-center gap-1.5 shadow-lg">
                 {slide.branding.statusDot && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
+                  <span data-activity-indicator aria-label="Индикатор активности" className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
                 )}
                 <span
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateBrandingText(e.currentTarget.textContent || '')}
+                  onInput={(e) => onUpdateBrandingText(e.currentTarget.textContent || '')}
                   className="font-bold tracking-wider text-[11px] text-white uppercase outline-none"
                 >
                   {slide.branding.text}
@@ -208,9 +208,10 @@ export const StoryStage: React.FC<StoryStageProps> = ({
             </div>
           )}
 
+          </header>
           {/* Layer 6: Content Center Container */}
-          <div
-            className={`absolute inset-0 z-20 flex flex-col justify-center px-6 py-12 pointer-events-auto ${
+          <div data-story-content
+            className={`relative min-h-0 overflow-hidden flex flex-col justify-center py-1 pointer-events-auto ${
               slide.typography.align === 'left'
                 ? 'items-start text-left'
                 : slide.typography.align === 'right'
@@ -218,10 +219,12 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 : 'items-center text-center'
             }`}
             style={{
+              gridRow: 2,
               fontFamily: slide.typography.fontFamily,
               color: slide.typography.textColor,
             }}
           >
+            <div data-content-body className="w-full shrink-0" style={{zoom: contentFit}}>
             {/* 1. EDITORIAL PRESET */}
             {slide.preset === 'editorial' && (
               <div className="flex flex-col gap-2.5 w-full">
@@ -230,7 +233,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     <span
                       contentEditable
                       suppressContentEditableWarning
-                      onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                      onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                       className="inline-block rounded-full px-3 py-1 text-[10px] font-bold tracking-widest uppercase outline-none"
                       style={{
                         backgroundColor: 'rgba(56, 189, 248, 0.15)',
@@ -246,8 +249,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <h2
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="font-extrabold leading-tight tracking-tight outline-none drop-shadow-md text-2xl sm:text-3xl"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="font-extrabold leading-tight tracking-tight outline-none drop-shadow-md text-2xl"
                   style={{
                     fontSize: `calc(1.75rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -258,8 +261,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <p
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
-                    className="text-xs sm:text-sm font-normal text-zinc-300 leading-relaxed outline-none drop-shadow"
+                    onInput={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
+                    className="text-sm font-normal text-zinc-300 leading-relaxed outline-none drop-shadow"
                   >
                     {slide.content.subtitle}
                   </p>
@@ -276,8 +279,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <p
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="text-lg sm:text-xl font-bold italic leading-snug drop-shadow-md outline-none -mt-2"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="text-lg font-bold italic leading-snug drop-shadow-md outline-none -mt-2"
                   style={{
                     fontSize: `calc(1.25rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -289,7 +292,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <span
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ authorName: e.currentTarget.textContent || '' })}
+                    onInput={(e) => onUpdateContent({ authorName: e.currentTarget.textContent || '' })}
                     className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 outline-none"
                   >
                     {slide.content.authorName}
@@ -305,7 +308,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <span
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                    onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                     className="mb-2 text-[10px] font-bold tracking-widest uppercase outline-none text-zinc-400"
                   >
                     {slide.content.tag}
@@ -314,16 +317,16 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <div
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ metricValue: e.currentTarget.textContent || '' })}
-                  className="font-black tracking-tight leading-none text-5xl sm:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 drop-shadow-lg outline-none"
+                  onInput={(e) => onUpdateContent({ metricValue: e.currentTarget.textContent || '' })}
+                  className="font-black tracking-tight leading-none text-5xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 drop-shadow-lg outline-none"
                 >
                   {slide.content.metricValue || '+100%'}
                 </div>
                 <h3
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="mt-3 text-base sm:text-lg font-bold leading-tight drop-shadow outline-none"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="mt-3 text-base font-bold leading-tight drop-shadow outline-none"
                   style={{
                     fontSize: `calc(1.125rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -334,8 +337,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <p
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
-                    className="mt-2 text-xs text-zinc-300 leading-relaxed outline-none drop-shadow max-w-[90%]"
+                    onInput={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
+                    className="mt-2 text-sm text-zinc-300 leading-relaxed outline-none drop-shadow max-w-[90%]"
                   >
                     {slide.content.subtitle}
                   </p>
@@ -351,7 +354,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     <span
                       contentEditable
                       suppressContentEditableWarning
-                      onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                      onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                       className="outline-none"
                     >
                       {slide.content.tag}
@@ -361,8 +364,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <h2
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight drop-shadow-md outline-none"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="text-2xl font-extrabold leading-tight tracking-tight drop-shadow-md outline-none"
                   style={{
                     fontSize: `calc(1.6rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -373,8 +376,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <p
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
-                    className="mt-3 text-xs sm:text-sm text-zinc-300 leading-relaxed drop-shadow outline-none"
+                    onInput={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
+                    className="mt-3 text-sm text-zinc-300 leading-relaxed drop-shadow outline-none"
                   >
                     {slide.content.subtitle}
                   </p>
@@ -389,7 +392,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <span
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                    onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                     className="mb-1 block text-[10px] font-bold tracking-wider uppercase text-cyan-300 outline-none"
                   >
                     {slide.content.tag}
@@ -398,8 +401,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <h2
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="text-lg sm:text-xl font-bold leading-tight text-white outline-none"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="text-lg font-bold leading-tight text-white outline-none"
                   style={{
                     fontSize: `calc(1.2rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -410,8 +413,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <p
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
-                    className="mt-2 text-xs text-zinc-300 leading-relaxed outline-none"
+                    onInput={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
+                    className="mt-2 text-sm text-zinc-300 leading-relaxed outline-none"
                   >
                     {slide.content.subtitle}
                   </p>
@@ -427,7 +430,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     <span
                       contentEditable
                       suppressContentEditableWarning
-                      onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                      onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                       className="outline-none"
                     >
                       {slide.content.tag}
@@ -437,8 +440,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <h2
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight drop-shadow-md outline-none"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="text-2xl font-extrabold leading-tight tracking-tight drop-shadow-md outline-none"
                   style={{
                     fontSize: `calc(1.6rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -449,8 +452,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <p
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
-                    className="mt-3 text-xs sm:text-sm text-zinc-300 leading-relaxed drop-shadow outline-none"
+                    onInput={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
+                    className="mt-3 text-sm text-zinc-300 leading-relaxed drop-shadow outline-none"
                   >
                     {slide.content.subtitle}
                   </p>
@@ -460,12 +463,12 @@ export const StoryStage: React.FC<StoryStageProps> = ({
 
             {/* 7. CHECKLIST PRESET */}
             {slide.preset === 'checklist' && (
-              <div className="flex flex-col w-full text-left">
+              <div className="checklist-layout flex flex-col w-full text-left">
                 {slide.content.tag && (
                   <span
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                    onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                     className="mb-2 text-[10px] font-bold tracking-widest uppercase text-emerald-400 outline-none"
                   >
                     {slide.content.tag}
@@ -474,8 +477,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <h2
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="text-xl sm:text-2xl font-extrabold leading-tight text-white mb-4 outline-none"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="text-xl font-extrabold leading-tight text-white mb-4 outline-none"
                   style={{
                     fontSize: `calc(1.35rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -494,12 +497,12 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                       <span
                         contentEditable
                         suppressContentEditableWarning
-                        onBlur={(e) => {
+                        onInput={(e) => {
                           const currentItems = [...(slide.content.checklistItems || [])];
                           currentItems[itemIdx] = e.currentTarget.textContent || '';
                           onUpdateContent({ checklistItems: currentItems });
                         }}
-                        className="text-xs font-medium text-zinc-200 leading-tight outline-none"
+                        className="text-sm font-medium text-zinc-200 leading-tight outline-none"
                       >
                         {item}
                       </span>
@@ -516,7 +519,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <span
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
+                    onInput={(e) => onUpdateContent({ tag: e.currentTarget.textContent || '' })}
                     className="mb-2 text-[10px] font-bold tracking-widest uppercase text-zinc-400 outline-none"
                   >
                     {slide.content.tag}
@@ -525,8 +528,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 <h2
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
-                  className="text-xl sm:text-2xl font-extrabold leading-tight text-white outline-none"
+                  onInput={(e) => onUpdateContent({ title: e.currentTarget.textContent || '' })}
+                  className="text-xl font-extrabold leading-tight text-white outline-none"
                   style={{
                     fontSize: `calc(1.35rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -539,8 +542,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     <span
                       contentEditable
                       suppressContentEditableWarning
-                      onBlur={(e) => onUpdateContent({ price: e.currentTarget.textContent || '' })}
-                      className="text-lg sm:text-xl font-black text-emerald-400 tracking-tight outline-none"
+                      onInput={(e) => onUpdateContent({ price: e.currentTarget.textContent || '' })}
+                      className="text-lg font-black text-emerald-400 tracking-tight outline-none"
                     >
                       {slide.content.price}
                     </span>
@@ -551,8 +554,8 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <p
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
-                    className="text-xs text-zinc-300 leading-relaxed outline-none drop-shadow"
+                    onInput={(e) => onUpdateContent({ subtitle: e.currentTarget.textContent || '' })}
+                    className="text-sm text-zinc-300 leading-relaxed outline-none drop-shadow"
                   >
                     {slide.content.subtitle}
                   </p>
@@ -560,8 +563,36 @@ export const StoryStage: React.FC<StoryStageProps> = ({
               </div>
             )}
 
+            {/* Two equal employee cards with one shared heading. */}
+            {isTeam && (() => {
+              const defaults = PRESET_DEFINITIONS[slide.preset].defaultContent.teamMembers || [];
+              const members = [0, 1].map((index) => slide.content.teamMembers?.[index] || (index === 1 ? defaults.find((member) => member.name !== slide.content.teamMembers?.[0]?.name) : defaults[index])).filter((member) => member !== undefined);
+              return <div className="team-layout flex w-full flex-col gap-3 text-left">
+                <h2 contentEditable suppressContentEditableWarning onInput={(e) => onUpdateContent({title: e.currentTarget.textContent || ''})}
+                  className="font-bold leading-tight tracking-tight outline-none" style={{fontSize: 22 * slide.typography.fontSizeScale}}>{slide.content.title}</h2>
+                <div className="flex flex-col gap-3">
+                  {members.slice(0, 2).map((member, index) => {
+                    const updateMember = (patch: Partial<typeof member>) => {
+                      const next = [...members]; next[index] = {...member, ...patch}; onUpdateContent({teamMembers: next});
+                    };
+                    return <article key={index} className="grid grid-cols-[88px_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10 bg-zinc-950/90 text-left">
+                      <img src={member.image} alt={member.name} crossOrigin="anonymous" className="h-[142px] w-[88px] object-cover object-top" />
+                      <div className="flex min-w-0 flex-col gap-2 p-3">
+                        <h3 contentEditable suppressContentEditableWarning onInput={(e) => updateMember({name:e.currentTarget.textContent || ''})} style={{fontSize: 18 * slide.typography.fontSizeScale}} className="font-semibold leading-tight outline-none">{member.name}</h3>
+                        <p contentEditable suppressContentEditableWarning onInput={(e) => updateMember({role:e.currentTarget.textContent || ''})} style={{fontSize: 13 * slide.typography.fontSizeScale}} className="leading-[1.4] text-zinc-200 outline-none">{member.role}</p>
+                        {(member.experience || member.achievement) && <div style={{fontSize: 12 * slide.typography.fontSizeScale}} className="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-white/10 pt-2 leading-snug text-zinc-300">
+                          {member.experience && <span contentEditable suppressContentEditableWarning onInput={(e) => updateMember({experience:e.currentTarget.textContent || ''})} className="outline-none">{member.experience}</span>}
+                          {member.achievement && <span contentEditable suppressContentEditableWarning onInput={(e) => updateMember({achievement:e.currentTarget.textContent || ''})} className="outline-none">{member.achievement}</span>}
+                        </div>}
+                      </div>
+                    </article>;
+                  })}
+                </div>
+              </div>;
+            })()}
+
             {/* QR Code Module */}
-            {slide.qrcode.visible && qrDataUrl && (
+            {!isTeam && slide.qrcode.visible && qrDataUrl && (
               <div className="mt-4 flex flex-col items-center">
                 <div className="rounded-xl bg-white p-1.5 shadow-2xl">
                   <img
@@ -578,19 +609,21 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 )}
               </div>
             )}
+            </div>
           </div>
 
+          <footer data-story-footer style={{gridRow: 3}} className="flex justify-center min-h-6">
           {/* Layer 7: Bottom Branding Position */}
-          {slide.branding.visible && slide.branding.position === 'bottom' && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
-              <div className="glass-badge rounded-full px-4 py-1.5 flex items-center gap-2 shadow-xl border border-white/20 transition-transform hover:scale-105">
+          {slide.branding.visible && (isTeam || slide.branding.position === 'bottom') && (
+            <div className="max-w-full">
+              <div className={isTeam ? "flex items-center gap-2 text-zinc-400" : "glass-badge rounded-full px-4 py-1.5 flex items-center gap-2 shadow-xl border border-white/20"}>
                 {slide.branding.statusDot && (
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
+                  <span data-activity-indicator aria-label="Индикатор активности" className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
                 )}
                 <span
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => onUpdateBrandingText(e.currentTarget.textContent || '')}
+                  onInput={(e) => onUpdateBrandingText(e.currentTarget.textContent || '')}
                   className="font-bold tracking-wider text-xs text-white uppercase outline-none"
                 >
                   {slide.branding.text}
@@ -599,34 +632,73 @@ export const StoryStage: React.FC<StoryStageProps> = ({
             </div>
           )}
 
+          </footer>
+          </div>
           {/* Layer 8: Safe Zones Guide Overlay */}
           {showSafeZones && (
-            <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-3 border-2 border-dashed border-emerald-500/50">
-              {/* Top safe zone limit */}
-              <div className="h-[14%] w-full border-b border-dashed border-emerald-400/60 bg-emerald-500/10 flex items-center justify-center">
-                <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-300">
-                  Зона шапки Stories (Не размещать текст)
-                </span>
-              </div>
-
-              {/* Center safe area */}
-              <div className="flex-1 flex items-center justify-center">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/40">
-                  Безопасная область контента
-                </span>
-              </div>
-
-              {/* Bottom safe zone limit */}
-              <div className="h-[18%] w-full border-t border-dashed border-emerald-400/60 bg-emerald-500/10 flex items-center justify-center">
-                <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-300">
-                  Зона реакций и ответа (Не размещать текст)
-                </span>
-              </div>
+            <div data-editor-only className="absolute inset-0 z-30 pointer-events-none">
+              <div className="absolute inset-x-0 top-0 bg-emerald-500/15 border-b border-dashed border-emerald-400/70" style={{ height: margins.top }} />
+              <div className="absolute inset-x-0 bottom-0 bg-emerald-500/15 border-t border-dashed border-emerald-400/70" style={{ height: margins.bottom }} />
+              <div className="absolute left-0 bg-emerald-500/15" style={{ top: margins.top, bottom: margins.bottom, width: margins.left }} />
+              <div className="absolute right-0 bg-emerald-500/15" style={{ top: margins.top, bottom: margins.bottom, width: margins.right }} />
+              <div className="absolute border border-dashed border-emerald-400/70" style={{ top: margins.top, bottom: margins.bottom, left: margins.left, right: margins.right }} />
+              <span className="absolute top-5 inset-x-0 text-center text-[12px] font-semibold text-emerald-300">{slide.destination === 'shorts' ? 'Shorts / Reels' : slide.destination === 'free' ? 'Свободный макет' : 'Stories'} · ориентир безопасной области</span>
             </div>
           )}
         </div>
+        </div>
+  );
+  if (thumbnailWidth) return <div inert className="pointer-events-none">{canvas}</div>;
+
+  return (
+    <div className="relative flex flex-1 flex-col items-center justify-between p-3 sm:p-6 min-w-0 min-h-0 overflow-auto">
+      <p className="mb-2 text-xs text-zinc-400">Нажмите на текст для редактирования</p>
+      {/* Top stage toolbar */}
+      <div className="mb-3 flex w-full max-w-[340px] sm:max-w-[380px] items-center justify-between text-xs text-zinc-400">
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-zinc-200">
+            Слайд {slideIndex + 1} из {totalSlides}
+          </span>
+          <span className="text-zinc-600">•</span>
+          <span className="font-mono text-[11px] text-zinc-400">9:16</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Safe Zones Toggle */}
+          <button
+            onClick={() => setShowSafeZones(!showSafeZones)}
+            title="Показать ориентир безопасной области для выбранного назначения"
+            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition ${
+              showSafeZones
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            {showSafeZones ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+            <span className="hidden sm:inline">Безопасные зоны</span>
+          </button>
+
+          {/* Scale Toggle */}
+          <button
+            onClick={() => setStageScale(stageScale === 'fit' ? '100%' : 'fit')}
+            title="Масштаб отображения"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+          >
+            {stageScale === 'fit' ? (
+              <Maximize2 className="h-3 w-3" />
+            ) : (
+              <Minimize2 className="h-3 w-3" />
+            )}
+          </button>
+        </div>
       </div>
 
+      {/* Main Canvas Viewport Container */}
+      <div ref={availableRef} className="relative flex w-full flex-1 min-h-0 items-center justify-center py-1">
+        {canvas}
+      </div>
+
+      {overflowing && <p role="status" className="mt-2 text-sm text-amber-400">Контент не помещается. Сократите заголовок или пункты: уменьшение ограничено, чтобы сохранить читаемость.</p>}
       {/* Bottom Stage Action Dock */}
       <div className="mt-3 flex w-full max-w-[340px] sm:max-w-[380px] items-center justify-center gap-2">
         <button
