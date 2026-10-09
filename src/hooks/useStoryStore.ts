@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { readProject, saveProject } from '../utils/storage';
 import { z } from 'zod';
 import {
   StorySlide,
@@ -41,14 +42,32 @@ export function useStoryStore() {
   const [historyPast, setHistoryPast] = useState<StorySlide[][]>([]);
   const [historyFuture, setHistoryFuture] = useState<StorySlide[][]>([]);
 
-  // Persist to local storage
+  const [storageReady, setStorageReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'loading' | 'saving' | 'saved' | 'error'>('loading');
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(slides));
-    } catch {
-      // Storage quota or private browsing error handled gracefully
-    }
-  }, [slides]);
+    let cancelled = false;
+    readProject().then((stored) => {
+      const parsed = z.array(StorySlideSchema).safeParse(stored);
+      if (!cancelled && parsed.success && parsed.data.length) setSlides(parsed.data);
+    }).catch(() => { if (!cancelled) setSaveStatus('error'); })
+      .finally(() => { if (!cancelled) setStorageReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+  const saveQueue = useRef(Promise.resolve());
+  useEffect(() => {
+    if (!storageReady) return;
+    setSaveStatus('saving');
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      saveQueue.current = saveQueue.current.catch(() => {}).then(() => saveProject(slides));
+      saveQueue.current.then(() => {
+        if (!cancelled) setSaveStatus('saved');
+      }).catch(() => {
+        if (!cancelled) { setSaveStatus('error'); window.dispatchEvent(new CustomEvent('story-storage-error')); }
+      });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [slides, storageReady]);
 
   // Ensure selected slide is valid
   useEffect(() => {
@@ -60,9 +79,14 @@ export function useStoryStore() {
     }
   }, [slides, selectedSlideId]);
 
+  const lastEdit = useRef(0);
   const recordChange = useCallback((newSlides: StorySlide[]) => {
+    const now = Date.now();
+      const editing = document.activeElement?.matches('input, textarea, [contenteditable=true]');
+      const grouped = editing && now - lastEdit.current < 800;
+      lastEdit.current = editing ? now : 0;
     setHistoryPast((past) => {
-      const nextPast = [...past, slides];
+      const nextPast = grouped ? past : [...past, slides];
       if (nextPast.length > MAX_HISTORY) {
         return nextPast.slice(nextPast.length - MAX_HISTORY);
       }
@@ -87,6 +111,7 @@ export function useStoryStore() {
 
     setHistoryPast((past) => past.slice(0, past.length - 1));
     setHistoryFuture((future) => [slides, ...future]);
+    lastEdit.current = 0;
     setSlides(previous);
   }, [historyPast, slides]);
 
@@ -97,6 +122,7 @@ export function useStoryStore() {
 
     setHistoryFuture((future) => future.slice(1));
     setHistoryPast((past) => [...past, slides]);
+    lastEdit.current = 0;
     setSlides(next);
   }, [historyFuture, slides]);
 
@@ -159,19 +185,20 @@ export function useStoryStore() {
   );
 
   const changePreset = useCallback(
-    (id: string, preset: PresetType) => {
+    (id: string, preset: PresetType, useExample = false) => {
       const def = PRESET_DEFINITIONS[preset];
       if (!def) return;
+      if (slides.find((slide) => slide.id === id)?.preset === preset && !useExample) return;
       updateSlide(id, (prev) => ({
         ...prev,
         preset,
         content: {
-          ...prev.content,
           ...def.defaultContent,
+          ...(useExample ? {} : prev.content),
         },
       }));
     },
-    [updateSlide]
+    [updateSlide, slides]
   );
 
   const addSlide = useCallback(
@@ -179,7 +206,7 @@ export function useStoryStore() {
       const def = PRESET_DEFINITIONS[preset];
       const nextIndex = slides.length;
       const bgImage = BUSINESS_STOCK_IMAGES[nextIndex % BUSINESS_STOCK_IMAGES.length];
-      const newId = `slide-${Date.now()}`;
+      const newId = crypto.randomUUID();
 
       const newSlide: StorySlide = {
         id: newId,
@@ -218,6 +245,7 @@ export function useStoryStore() {
           ...def.defaultContent,
         },
         showCounter: true,
+        destination: 'stories',
       };
 
       recordChange([...slides, newSlide]);
@@ -233,7 +261,7 @@ export function useStoryStore() {
       const target = slides[targetIndex];
       if (!target) return;
 
-      const newId = `slide-${Date.now()}`;
+      const newId = crypto.randomUUID();
       const duplicated: StorySlide = {
         ...JSON.parse(JSON.stringify(target)),
         id: newId,
@@ -290,6 +318,8 @@ export function useStoryStore() {
 
   return {
     slides,
+    storageReady,
+    saveStatus,
     selectedSlideId,
     selectedSlide,
     selectedIndex,
@@ -306,6 +336,7 @@ export function useStoryStore() {
     deleteSlide,
     reorderSlides,
     resetToDefault,
+    importProject: (project: StorySlide[]) => { recordChange(project); setSelectedSlideId(project[0].id); },
     undo,
     redo,
     canUndo: historyPast.length > 0,

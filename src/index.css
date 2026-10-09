@@ -62,3 +62,32 @@
 .touch-pan-y {
   touch-action: pan-y;
 }
+
+button:focus-visible, [role="button"]:focus-visible, select:focus-visible { outline: 2px solid #34d399; outline-offset: 3px; }
+.story-canvas [contenteditable]:focus { outline: 1px dashed #34d399; outline-offset: 4px; }
+.story-canvas [contenteditable] { cursor: text; user-select: text; overflow-wrap: anywhere; }
+
+.story-canvas [data-story-content] [contenteditable] { color: var(--story-text); }
+.story-canvas [data-story-content] [contenteditable].text-transparent { color: transparent; }
+.story-canvas [data-story-content] [contenteditable].uppercase { color: var(--story-accent); }
+
+/* Dense templates retain a reserved footer and simplify spacing before scaling. */
+.checklist-layout h2 { margin-bottom: 12px; }
+.checklist-layout > div { gap: 8px; }
+.story-canvas[data-dense] .checklist-layout h2 { font-size: calc(20px * var(--story-font-scale)) !important; margin-bottom: 8px; }
+.story-canvas[data-dense] .checklist-layout > div { gap: 6px; }
+.story-canvas[data-dense] .checklist-layout > div > div { padding: 7px 8px; }
+.story-canvas[data-dense] .team-layout { gap: 8px; }
+.story-canvas[data-dense] .team-layout h2 { font-size: calc(20px * var(--story-font-scale)) !important; }
+.story-canvas[data-dense] .team-layout article { grid-template-columns: 72px minmax(0, 1fr); }
+.story-canvas[data-dense] .team-layout article > img { width: 72px; height: 116px; }
+.story-canvas[data-dense] .team-layout article > div { padding: 8px; gap: 6px; }
+
+/* Apply the editor settings to text in every template. */
+.story-canvas [data-story-content] [contenteditable] { text-align: var(--story-align); }
+.story-canvas [data-content-body] .text-sm { font-size: calc(14px * var(--story-font-scale)); }
+.story-canvas [data-content-body] .text-xs { font-size: calc(12px * var(--story-font-scale)); }
+.story-canvas [data-content-body] .text-\[10px\] { font-size: calc(10px * var(--story-font-scale)); }
+.story-canvas [data-content-body] .text-\[11px\] { font-size: calc(11px * var(--story-font-scale)); }
+.story-canvas [data-content-body] .text-lg { font-size: calc(18px * var(--story-font-scale)); }
+.story-canvas [data-content-body] .text-5xl { font-size: calc(48px * var(--story-font-scale)); }
