@@ -41,6 +41,8 @@ interface InspectorPanelProps {
   onUpdateTypography: (patch: Partial<TypographyConfig>) => void;
   onUpdateBranding: (patch: Partial<BrandingConfig>) => void;
   onUpdateQrCode: (patch: Partial<QrCodeConfig>) => void;
+  onUpdateShowCounter: (showCounter: boolean) => void;
+  onApplyShowCounterToAll?: (showCounter: boolean) => void;
   onShowToast: (message: string, isSuccess?: boolean) => void;
 }
 
@@ -55,6 +57,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onUpdateTypography,
   onUpdateBranding,
   onUpdateQrCode,
+  onUpdateShowCounter,
+  onApplyShowCounterToAll,
   onShowToast,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -790,6 +794,50 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         {/* TAB 4: BRANDING & QR CODE */}
         {activeTab === 'modules' && (
           <div className="space-y-4">
+            {/* Story Counter Badge */}
+            {slide.preset !== 'team_management' && slide.preset !== 'team_legal' ? (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label htmlFor="story-counter-toggle" className="font-semibold text-zinc-200 cursor-pointer block text-sm">
+                      Бейдж истории
+                    </label>
+                    <span className="text-[11px] text-zinc-400">
+                      Счетчик в шапке (напр. «03 / ИСТОРИЯ»)
+                    </span>
+                  </div>
+                  <input
+                    id="story-counter-toggle"
+                    name="storyCounterVisible"
+                    aria-label="Включить бейдж истории"
+                    type="checkbox"
+                    checked={slide.showCounter}
+                    onChange={(e) => onUpdateShowCounter(e.target.checked)}
+                    className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-emerald-500 accent-emerald-500 cursor-pointer"
+                  />
+                </div>
+
+                {onApplyShowCounterToAll && (
+                  <button
+                    type="button"
+                    onClick={() => onApplyShowCounterToAll(slide.showCounter)}
+                    className="w-full text-center text-xs py-1.5 px-2.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:border-zinc-700 transition"
+                  >
+                    Применить ко всем слайдам
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-3">
+                <div className="opacity-60">
+                  <span className="font-semibold text-zinc-300 block text-sm">Бейдж истории</span>
+                  <span className="text-[11px] text-zinc-500">
+                    Недоступен для карточек команды (шапка скрыта для экономии места)
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Branding Badge */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
               <div className="flex items-center justify-between">

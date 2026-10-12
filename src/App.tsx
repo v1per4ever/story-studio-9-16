@@ -23,6 +23,7 @@ export function App() {
     setSelectedSlideId,
     updateContent,
     updateSlide,
+    updateAllSlides,
     updateBackground,
     updateTypography,
     updateBranding,
@@ -265,6 +266,11 @@ export function App() {
           onUpdateTypography={(patch) => updateTypography(selectedSlide.id, patch)}
           onUpdateBranding={(patch) => updateBranding(selectedSlide.id, patch)}
           onUpdateQrCode={(patch) => updateQrCode(selectedSlide.id, patch)}
+          onUpdateShowCounter={(showCounter) => updateSlide(selectedSlide.id, (prev) => ({ ...prev, showCounter }))}
+          onApplyShowCounterToAll={(showCounter) => {
+            updateAllSlides((prev) => ({ ...prev, showCounter }));
+            showToast(showCounter ? 'Бейдж истории включен во всех слайдах' : 'Бейдж истории отключен во всех слайдах', true);
+          }}
           onShowToast={showToast}
         />
       </main>

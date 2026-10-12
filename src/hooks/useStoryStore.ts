@@ -134,6 +134,14 @@ export function useStoryStore() {
     [slides, recordChange]
   );
 
+  const updateAllSlides = useCallback(
+    (updater: (prev: StorySlide) => StorySlide) => {
+      const nextSlides = slides.map(updater);
+      recordChange(nextSlides);
+    },
+    [slides, recordChange]
+  );
+
   const updateContent = useCallback(
     (id: string, patch: Partial<SlideContent>) => {
       updateSlide(id, (prev) => ({
@@ -325,6 +333,7 @@ export function useStoryStore() {
     selectedIndex,
     setSelectedSlideId,
     updateSlide,
+    updateAllSlides,
     updateContent,
     updateBackground,
     updateTypography,
