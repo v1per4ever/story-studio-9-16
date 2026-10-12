@@ -1,16 +1,35 @@
 {
-  "name": "Stories",
+  "name": "story-studio-9-16",
   "version": "1.1.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Профессиональный веб-редактор и генератор вертикальных историй и креативов в формате 9:16 (HD 1080×1920 px)",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "stories",
+    "story-maker",
+    "shorts",
+    "reels",
+    "canvas",
+    "react19",
+    "vite",
+    "typescript",
+    "tailwindcss",
+    "indexeddb",
+    "safe-zones",
+    "editor"
+  ],
+  "author": "v1per4ever",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/v1per4ever/story-studio-9-16.git"
+  },
+  "homepage": "https://github.com/v1per4ever/story-studio-9-16#readme",
   "type": "module",
   "dependencies": {
     "clsx": "^2.1.1",
