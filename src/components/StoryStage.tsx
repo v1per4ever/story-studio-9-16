@@ -140,7 +140,20 @@ export const StoryStage: React.FC<StoryStageProps> = ({
           data-layout-overflow={overflowing ? true : undefined}
           data-dense={slide.destination === 'shorts' ? true : undefined}
           className="story-canvas relative overflow-hidden bg-black shadow-2xl"
-          style={{ width: 360, height: 640, transform: `scale(${thumbnailWidth ? thumbnailWidth / 360 : stageScale === 'fit' ? fitScale : 1})`, transformOrigin: 'top left', fontFamily: slide.typography.fontFamily, color: slide.typography.textColor, '--story-text': slide.typography.textColor, '--story-accent': slide.typography.tagColor, '--story-font-scale': slide.typography.fontSizeScale, '--story-align': slide.typography.align } as React.CSSProperties}
+          style={{
+            width: 360,
+            height: 640,
+            transform: `scale(${thumbnailWidth ? thumbnailWidth / 360 : stageScale === 'fit' ? fitScale : 1})`,
+            transformOrigin: 'top left',
+            fontFamily: slide.typography.fontFamily,
+            color: slide.typography.textColor,
+            '--story-text': slide.typography.textColor,
+            '--story-accent': slide.typography.tagColor,
+            '--story-font-scale': slide.typography.fontSizeScale,
+            '--story-align': slide.typography.align,
+            '--story-line-height': slide.typography.lineHeight,
+            '--story-letter-spacing': slide.typography.letterSpacing,
+          } as React.CSSProperties}
         >
           {/* Layer 1: Background Element */}
           {slide.background.type === 'image' && (
@@ -231,6 +244,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                   <div>
                     <EditableText
                       as="span"
+                      data-story-tag
                       value={slide.content.tag}
                       onChange={(tag) => onUpdateContent({ tag })}
                       className="inline-block rounded-full px-3 py-1 text-[10px] font-bold tracking-widest uppercase outline-none"
@@ -257,7 +271,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     as="p"
                     value={slide.content.subtitle}
                     onChange={(subtitle) => onUpdateContent({ subtitle })}
-                    className="text-sm font-normal text-zinc-300 leading-relaxed outline-none drop-shadow"
+                    className="text-sm font-normal leading-relaxed outline-none drop-shadow opacity-85"
                   />
                 )}
               </div>
@@ -278,13 +292,14 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     fontSize: `calc(1.25rem * ${slide.typography.fontSizeScale})`,
                   }}
                 />
-                <div className="my-3.5 h-0.5 w-10 bg-emerald-500 opacity-80" />
+                <div className="my-3.5 h-0.5 w-10 opacity-80" style={{ backgroundColor: slide.typography.tagColor }} />
                 {slide.content.authorName && (
                   <EditableText
                     as="span"
                     value={slide.content.authorName}
                     onChange={(authorName) => onUpdateContent({ authorName })}
-                    className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 outline-none"
+                    className="text-[11px] font-semibold uppercase tracking-widest outline-none"
+                    style={{ color: slide.typography.tagColor }}
                   />
                 )}
               </div>
@@ -296,9 +311,11 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 {slide.content.tag && (
                   <EditableText
                     as="span"
+                    data-story-tag
                     value={slide.content.tag}
                     onChange={(tag) => onUpdateContent({ tag })}
-                    className="mb-2 text-[10px] font-bold tracking-widest uppercase outline-none text-zinc-400"
+                    className="mb-2 text-[10px] font-bold tracking-widest uppercase outline-none"
+                    style={{ color: slide.typography.tagColor }}
                   />
                 )}
                 <EditableText
@@ -321,7 +338,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     as="p"
                     value={slide.content.subtitle}
                     onChange={(subtitle) => onUpdateContent({ subtitle })}
-                    className="mt-2 text-sm text-zinc-300 leading-relaxed outline-none drop-shadow max-w-[90%]"
+                    className="mt-2 text-sm leading-relaxed outline-none drop-shadow max-w-[90%] opacity-85"
                   />
                 )}
               </div>
@@ -331,9 +348,13 @@ export const StoryStage: React.FC<StoryStageProps> = ({
             {slide.preset === 'highlight' && (
               <div className="flex flex-col items-center w-full">
                 {slide.content.tag && (
-                  <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                  <div
+                    className="mb-3 rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider"
+                    style={{ borderColor: `${slide.typography.tagColor}55`, backgroundColor: `${slide.typography.tagColor}15`, color: slide.typography.tagColor }}
+                  >
                     <EditableText
                       as="span"
+                      data-story-tag
                       value={slide.content.tag}
                       onChange={(tag) => onUpdateContent({ tag })}
                       className="outline-none"
@@ -354,7 +375,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     as="p"
                     value={slide.content.subtitle}
                     onChange={(subtitle) => onUpdateContent({ subtitle })}
-                    className="mt-3 text-sm text-zinc-300 leading-relaxed drop-shadow outline-none"
+                    className="mt-3 text-sm leading-relaxed drop-shadow outline-none opacity-85"
                   />
                 )}
               </div>
@@ -366,16 +387,18 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 {slide.content.tag && (
                   <EditableText
                     as="span"
+                    data-story-tag
                     value={slide.content.tag}
                     onChange={(tag) => onUpdateContent({ tag })}
-                    className="mb-1 block text-[10px] font-bold tracking-wider uppercase text-cyan-300 outline-none"
+                    className="mb-1 block text-[10px] font-bold tracking-wider uppercase outline-none"
+                    style={{ color: slide.typography.tagColor }}
                   />
                 )}
                 <EditableText
                   as="h2"
                   value={slide.content.title}
                   onChange={(title) => onUpdateContent({ title })}
-                  className="text-lg font-bold leading-tight text-white outline-none"
+                  className="text-lg font-bold leading-tight outline-none"
                   style={{
                     fontSize: `calc(1.2rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -385,7 +408,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     as="p"
                     value={slide.content.subtitle}
                     onChange={(subtitle) => onUpdateContent({ subtitle })}
-                    className="mt-2 text-sm text-zinc-300 leading-relaxed outline-none"
+                    className="mt-2 text-sm leading-relaxed outline-none opacity-85"
                   />
                 )}
               </div>
@@ -395,9 +418,13 @@ export const StoryStage: React.FC<StoryStageProps> = ({
             {slide.preset === 'announcement' && (
               <div className="flex flex-col items-center w-full">
                 {slide.content.tag && (
-                  <div className="mb-3 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                  <div
+                    className="mb-3 rounded-full border px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest"
+                    style={{ borderColor: `${slide.typography.tagColor}55`, backgroundColor: `${slide.typography.tagColor}15`, color: slide.typography.tagColor }}
+                  >
                     <EditableText
                       as="span"
+                      data-story-tag
                       value={slide.content.tag}
                       onChange={(tag) => onUpdateContent({ tag })}
                       className="outline-none"
@@ -418,7 +445,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                     as="p"
                     value={slide.content.subtitle}
                     onChange={(subtitle) => onUpdateContent({ subtitle })}
-                    className="mt-3 text-sm text-zinc-300 leading-relaxed drop-shadow outline-none"
+                    className="mt-3 text-sm leading-relaxed drop-shadow outline-none opacity-85"
                   />
                 )}
               </div>
@@ -430,16 +457,18 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 {slide.content.tag && (
                   <EditableText
                     as="span"
+                    data-story-tag
                     value={slide.content.tag}
                     onChange={(tag) => onUpdateContent({ tag })}
-                    className="mb-2 text-[10px] font-bold tracking-widest uppercase text-emerald-400 outline-none"
+                    className="mb-2 text-[10px] font-bold tracking-widest uppercase outline-none"
+                    style={{ color: slide.typography.tagColor }}
                   />
                 )}
                 <EditableText
                   as="h2"
                   value={slide.content.title}
                   onChange={(title) => onUpdateContent({ title })}
-                  className="text-xl font-extrabold leading-tight text-white mb-4 outline-none"
+                  className="text-xl font-extrabold leading-tight mb-4 outline-none"
                   style={{
                     fontSize: `calc(1.35rem * ${slide.typography.fontSizeScale})`,
                   }}
@@ -450,7 +479,10 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                       key={itemIdx}
                       className="flex items-center gap-2.5 rounded-xl bg-black/40 border border-white/10 p-2.5 backdrop-blur-sm"
                     >
-                      <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                      <div
+                        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border"
+                        style={{ borderColor: `${slide.typography.tagColor}60`, backgroundColor: `${slide.typography.tagColor}20`, color: slide.typography.tagColor }}
+                      >
                         <Check className="h-3 w-3 stroke-[2.5]" />
                       </div>
                       <EditableText
@@ -461,7 +493,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                           currentItems[itemIdx] = text;
                           onUpdateContent({ checklistItems: currentItems });
                         }}
-                        className="text-sm font-medium text-zinc-200 leading-tight outline-none"
+                        className="text-sm font-medium leading-tight outline-none opacity-90"
                       />
                     </div>
                   ))}
@@ -475,28 +507,31 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                 {slide.content.tag && (
                   <EditableText
                     as="span"
+                    data-story-tag
                     value={slide.content.tag}
                     onChange={(tag) => onUpdateContent({ tag })}
-                    className="mb-2 text-[10px] font-bold tracking-widest uppercase text-zinc-400 outline-none"
+                    className="mb-2 text-[10px] font-bold tracking-widest uppercase outline-none"
+                    style={{ color: slide.typography.tagColor }}
                   />
                 )}
                 <EditableText
                   as="h2"
                   value={slide.content.title}
                   onChange={(title) => onUpdateContent({ title })}
-                  className="text-xl font-extrabold leading-tight text-white outline-none"
+                  className="text-xl font-extrabold leading-tight outline-none"
                   style={{
                     fontSize: `calc(1.35rem * ${slide.typography.fontSizeScale})`,
                   }}
                 />
 
                 {slide.content.price && (
-                  <div className="my-3.5 rounded-2xl bg-zinc-900/90 border border-emerald-500/30 px-4 py-2 shadow-xl">
+                  <div className="my-3.5 rounded-2xl bg-zinc-900/90 border border-white/15 px-4 py-2 shadow-xl">
                     <EditableText
                       as="span"
                       value={slide.content.price}
                       onChange={(price) => onUpdateContent({ price })}
-                      className="text-lg font-black text-emerald-400 tracking-tight outline-none"
+                      className="text-lg font-black tracking-tight outline-none"
+                      style={{ color: slide.typography.tagColor }}
                     />
                   </div>
                 )}
@@ -512,7 +547,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
               </div>
             )}
 
-            {/* Team Layout: Adaptive for 1 or 2 specialists */}
+            {/* Team Layout: Consistent with team_management (1 or 2 specialists) */}
             {isTeam && (() => {
               const defaults = PRESET_DEFINITIONS[slide.preset]?.defaultContent?.teamMembers || [];
               const members = (slide.content.teamMembers && slide.content.teamMembers.length > 0)
@@ -521,13 +556,30 @@ export const StoryStage: React.FC<StoryStageProps> = ({
               const isSingle = members.length === 1;
 
               return (
-                <div className={`team-layout flex w-full flex-col text-left ${isSingle ? 'gap-3.5 my-auto' : 'gap-3'}`}>
+                <div className={`team-layout flex w-full flex-col text-left ${isSingle ? 'gap-3 my-auto' : 'gap-2.5'}`}>
+                  {slide.content.tag && (
+                    <div>
+                      <EditableText
+                        as="span"
+                        data-story-tag
+                        value={slide.content.tag}
+                        onChange={(tag) => onUpdateContent({ tag })}
+                        className="inline-block rounded-full px-3 py-1 text-[10px] font-bold tracking-widest uppercase outline-none"
+                        style={{
+                          backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                          borderColor: 'rgba(56, 189, 248, 0.3)',
+                          borderWidth: 1,
+                          color: slide.typography.tagColor,
+                        }}
+                      />
+                    </div>
+                  )}
                   <EditableText
                     as="h2"
                     value={slide.content.title}
                     onChange={(title) => onUpdateContent({ title })}
                     className="font-bold leading-tight tracking-tight outline-none"
-                    style={{ fontSize: (isSingle ? 23 : 21) * slide.typography.fontSizeScale }}
+                    style={{ fontSize: (isSingle ? 21 : 19) * slide.typography.fontSizeScale }}
                   />
                   <div className={`flex flex-col ${isSingle ? 'gap-3' : 'gap-2.5'}`}>
                     {members.slice(0, 2).map((member, index) => {
@@ -537,51 +589,10 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                         onUpdateContent({ teamMembers: next });
                       };
 
-                      return isSingle ? (
+                      return (
                         <article
                           key={index}
-                          className="hero-card relative flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-zinc-950/90 text-left shadow-2xl backdrop-blur-md"
-                        >
-                          <div className="relative h-[200px] w-full overflow-hidden bg-zinc-900">
-                            <img
-                              src={member.image}
-                              alt={member.name}
-                              crossOrigin="anonymous"
-                              className="h-full w-full object-cover object-top"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
-                            {member.experience && (
-                              <span className="absolute bottom-2.5 left-3 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-                                Опыт: {member.experience}
-                              </span>
-                            )}
-                            {member.achievement && (
-                              <span className="absolute bottom-2.5 right-3 rounded-full bg-white/10 border border-white/20 px-2.5 py-0.5 text-[10px] font-medium text-zinc-200">
-                                {member.achievement}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-1.5 p-3.5">
-                            <EditableText
-                              as="h3"
-                              value={member.name}
-                              onChange={(name) => updateMember({ name })}
-                              style={{ fontSize: 20 * slide.typography.fontSizeScale }}
-                              className="font-bold leading-tight outline-none text-white"
-                            />
-                            <EditableText
-                              as="p"
-                              value={member.role}
-                              onChange={(role) => updateMember({ role })}
-                              style={{ fontSize: 13.5 * slide.typography.fontSizeScale }}
-                              className="leading-[1.45] text-zinc-200 outline-none"
-                            />
-                          </div>
-                        </article>
-                      ) : (
-                        <article
-                          key={index}
-                          className="grid grid-cols-[88px_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10 bg-zinc-950/90 text-left"
+                          className="grid grid-cols-[88px_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10 bg-zinc-950/90 text-left shadow-lg"
                         >
                           <img
                             src={member.image}
@@ -602,12 +613,12 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                               value={member.role}
                               onChange={(role) => updateMember({ role })}
                               style={{ fontSize: 13 * slide.typography.fontSizeScale }}
-                              className="leading-[1.4] text-zinc-200 outline-none"
+                              className="leading-[1.4] outline-none opacity-85"
                             />
                             {(member.experience || member.achievement) && (
                               <div
                                 style={{ fontSize: 12 * slide.typography.fontSizeScale }}
-                                className="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-white/10 pt-2 leading-snug text-zinc-300"
+                                className="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-white/10 pt-2 leading-snug opacity-90"
                               >
                                 {member.experience && (
                                   <EditableText
@@ -622,7 +633,7 @@ export const StoryStage: React.FC<StoryStageProps> = ({
                                     as="span"
                                     value={member.achievement}
                                     onChange={(achievement) => updateMember({ achievement })}
-                                    className="outline-none"
+                                    className="outline-none font-medium"
                                   />
                                 )}
                               </div>

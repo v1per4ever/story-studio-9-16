@@ -193,20 +193,23 @@ export function useStoryStore() {
   );
 
   const changePreset = useCallback(
-    (id: string, preset: PresetType, useExample = false) => {
+    (id: string, preset: PresetType, useExample = true) => {
       const def = PRESET_DEFINITIONS[preset];
       if (!def) return;
-      if (slides.find((slide) => slide.id === id)?.preset === preset && !useExample) return;
       updateSlide(id, (prev) => ({
         ...prev,
         preset,
-        content: {
-          ...def.defaultContent,
-          ...(useExample ? {} : prev.content),
-        },
+        content: useExample
+          ? { ...def.defaultContent }
+          : {
+              ...def.defaultContent,
+              ...(prev.content.title ? { title: prev.content.title } : {}),
+              ...(prev.content.tag ? { tag: prev.content.tag } : {}),
+              ...(prev.content.subtitle ? { subtitle: prev.content.subtitle } : {}),
+            },
       }));
     },
-    [updateSlide, slides]
+    [updateSlide]
   );
 
   const addSlide = useCallback(

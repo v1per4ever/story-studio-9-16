@@ -89,7 +89,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     window.addEventListener('keydown', handleKey);
     return () => { window.removeEventListener('keydown', handleKey); previous?.focus(); };
   }, [isOpenMobile, onCloseMobile]);
-  const [presetMode, setPresetMode] = useState<'keep' | 'example'>('keep');
   const [activeTab, setActiveTab] = useState<ActiveTab>('content');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,28 +197,48 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <p className="mt-2 text-zinc-400">Маски — ориентиры компоновки, интерфейс платформ может отличаться. Экспорт: изображение 1080×1920.</p>
             </div>
             <div>
-              <label className="mb-1.5 block font-semibold text-zinc-400">Бизнес-шаблон</label>
-              <select aria-label="Бизнес-шаблон" value={slide.preset} onChange={(e) => onChangePreset(e.target.value as PresetType, presetMode === 'example')} className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm">
-                {(Object.keys(PRESET_DEFINITIONS) as PresetType[]).map((key) => <option key={key} value={key}>{PRESET_DEFINITIONS[key].title}</option>)}
-              </select>
-              <div className="mt-2 flex gap-2">
-                <button aria-pressed={presetMode === 'keep'} className={`rounded border p-2 ${presetMode === 'keep' ? 'border-emerald-500' : 'border-zinc-700'}`} onClick={() => setPresetMode('keep')}>Сохранить текст</button>
-                <button aria-pressed={presetMode === 'example'} className={`rounded border p-2 ${presetMode === 'example' ? 'border-emerald-500' : 'border-zinc-700'}`} onClick={() => setPresetMode('example')}>Использовать пример</button>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="font-semibold text-zinc-300">Бизнес-шаблон</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChangePreset(slide.preset, true);
+                    onShowToast('Загружен демо-текст шаблона');
+                  }}
+                  title="Сбросить поля слайда к эталонному тексту выбранного шаблона"
+                  className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-emerald-400 hover:bg-zinc-800 hover:border-emerald-500/50 transition"
+                >
+                  Сбросить к тексту шаблона
+                </button>
               </div>
-              <p className="mt-2 text-xs text-zinc-400">{PRESET_DEFINITIONS[slide.preset].description}</p>
+              <select
+                aria-label="Бизнес-шаблон"
+                value={slide.preset}
+                onChange={(e) => onChangePreset(e.target.value as PresetType, true)}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none"
+              >
+                {(Object.keys(PRESET_DEFINITIONS) as PresetType[]).map((key) => (
+                  <option key={key} value={key}>
+                    {PRESET_DEFINITIONS[key].title}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-zinc-400">
+                {PRESET_DEFINITIONS[slide.preset].description}
+              </p>
             </div>
 
             {/* Tag / Category */}
-            {slide.preset !== 'team_management' && slide.preset !== 'team_legal' && <div>
+            <div>
               <label className="mb-1 block font-medium text-zinc-400">Тег / Рубрика</label>
               <input
                 type="text"
-                value={slide.content.tag}
+                value={slide.content.tag || ''}
                 onChange={(e) => onUpdateContent({ tag: e.target.value })}
-                placeholder="Например: СТРАТЕГИЯ И РОСТ"
+                placeholder="Например: // 05. ЭКСПЕРТИЗА И КОМАНДА"
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
               />
-            </div>}
+            </div>
 
             {/* Title */}
             <div>
