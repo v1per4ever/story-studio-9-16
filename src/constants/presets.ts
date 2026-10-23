@@ -171,7 +171,7 @@ export const PRESET_DEFINITIONS: Record<PresetType, PresetInfo> = {
   team_legal: {
     id: 'team_legal',
     title: 'Команда: Право и аудит',
-    description: 'Два специалиста: правовая практика и финансовый аудит (Анна и Кирилл)',
+    description: 'Ведущий эксперт: правовая практика и защита учредителей (Анна)',
     defaultContent: {
       tag: '// 05. ЭКСПЕРТИЗА И КОМАНДА',
       title: 'Команда экспертов доверительного управления',
@@ -186,15 +186,6 @@ export const PRESET_DEFINITIONS: Record<PresetType, PresetInfo> = {
           image: './team/anna.webp',
           verified: true,
         },
-        {
-          name: 'Кирилл',
-          role: 'Системный аналитик. Финансовый аудит, сквозная оцифровка и контроль рисков.',
-          experience: '10+ лет',
-          achievement: '100% аудит',
-          achievementIcon: 'metric',
-          image: './team/kirill.webp',
-          verified: true,
-        },
       ],
     },
   },
@@ -204,7 +195,6 @@ export const DEFAULT_TEAM_AVATARS = [
   { id: 'vladimir', name: 'Владимир', url: './team/vladimir.webp' },
   { id: 'alexey', name: 'Алексей', url: './team/alexey.webp' },
   { id: 'anna', name: 'Анна', url: './team/anna.webp' },
-  { id: 'kirill', name: 'Кирилл', url: './team/kirill.webp' },
 ];
 
 export const INITIAL_SLIDES: StorySlide[] = [

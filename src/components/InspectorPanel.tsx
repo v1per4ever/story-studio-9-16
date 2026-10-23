@@ -16,6 +16,16 @@ import {
   FONT_OPTIONS,
   DEFAULT_TEAM_AVATARS,
 } from '../constants/presets';
+
+const COLOR_PRESETS = [
+  { name: 'Белый', value: '#ffffff' },
+  { name: 'Изумруд', value: '#34d399' },
+  { name: 'Небо', value: '#38bdf8' },
+  { name: 'Янтарь', value: '#fbbf24' },
+  { name: 'Коралл', value: '#f87171' },
+  { name: 'Фиолетовый', value: '#a78bfa' },
+];
+
 import {
   LayoutTemplate,
   Type,
@@ -111,15 +121,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const panelContent = (
     <div className="flex h-full flex-col text-xs text-zinc-300">
       {/* Mobile Handle & Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 p-3 lg:hidden">
-        <span className="font-semibold text-zinc-100">Настройки слайда</span>
-        <button
-          onClick={onCloseMobile}
-          aria-label="Закрыть панель"
-          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      <div className="border-b border-zinc-800 p-3 lg:hidden">
+        <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-zinc-700/80" />
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-zinc-100">Настройки слайда</span>
+          <button
+            onClick={onCloseMobile}
+            aria-label="Закрыть панель"
+            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Tabs Bar */}
@@ -325,162 +338,200 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               </div>
             )}
 
-            {/* Team Presets: 2 Members Editor */}
+            {/* Team Presets: Adaptive 1 or 2 Members Editor */}
             {(slide.preset === 'team_management' || slide.preset === 'team_legal') && (
               <div className="space-y-4 pt-1">
-                <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
-                  <span className="font-semibold text-zinc-200">Сотрудники · 2 карточки</span>
-                  <span className="text-[10px] text-zinc-500 font-mono">9:16 стек</span>
-                </div>
-
                 {(() => {
-                  const defaults = PRESET_DEFINITIONS[slide.preset].defaultContent.teamMembers || [];
-                  const members = [0, 1].map((index) => slide.content.teamMembers?.[index] || (index === 1 ? defaults.find((member) => member.name !== slide.content.teamMembers?.[0]?.name) : defaults[index])).filter((member) => member !== undefined);
+                  const defaults = PRESET_DEFINITIONS[slide.preset]?.defaultContent?.teamMembers || [];
+                  const members = (slide.content.teamMembers && slide.content.teamMembers.length > 0)
+                    ? slide.content.teamMembers
+                    : defaults;
 
-                  return members.map((_, mIdx) => {
-                    const member = members[mIdx] || {
-                      name: mIdx === 0 ? 'Эксперт 1' : 'Эксперт 2',
-                      role: 'Специализация эксперта',
-                      experience: '10+ лет',
-                      achievement: '100% аудит',
-                      achievementIcon: 'shield' as const,
-                      image: DEFAULT_TEAM_AVATARS[mIdx]?.url || './team/vladimir.webp',
-                      verified: true,
-                    };
+                  return (
+                    <>
+                      <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
+                        <span className="font-semibold text-zinc-200">
+                          Сотрудники · {members.length} {members.length === 1 ? 'карточка' : 'карточки'}
+                        </span>
+                        {members.length < 2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newMember = {
+                                name: 'Новый эксперт',
+                                role: 'Специализация и ключевые компетенции',
+                                experience: '10+ лет',
+                                achievement: 'Лидер отрасли',
+                                achievementIcon: 'award' as const,
+                                image: DEFAULT_TEAM_AVATARS[0]?.url || './team/anna.webp',
+                                verified: true,
+                              };
+                              onUpdateContent({ teamMembers: [...members, newMember] });
+                              onShowToast('Добавлена вторая карточка эксперта');
+                            }}
+                            className="flex items-center gap-1 rounded bg-zinc-900 border border-zinc-700 px-2 py-1 text-[11px] font-medium text-emerald-400 hover:bg-zinc-800 transition"
+                          >
+                            <Plus className="h-3 w-3" />
+                            <span>Добавить эксперта</span>
+                          </button>
+                        )}
+                      </div>
 
-                    const handleMemberChange = (patch: Partial<typeof member>) => {
-                      const next = [...members];
-                      next[mIdx] = { ...member, ...patch };
-                      onUpdateContent({ teamMembers: next });
-                    };
+                      {members.map((member, mIdx) => {
+                        const handleMemberChange = (patch: Partial<typeof member>) => {
+                          const next = [...members];
+                          next[mIdx] = { ...member, ...patch };
+                          onUpdateContent({ teamMembers: next });
+                        };
 
-                    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (!file.type.startsWith('image/')) {
-                        onShowToast('Пожалуйста, выберите файл изображения', false);
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const dataUrl = event.target?.result as string;
-                        if (dataUrl) {
-                          handleMemberChange({ image: dataUrl });
-                          onShowToast(`Фото для «${member.name}» загружено`, true);
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    };
+                        const handleRemoveMember = () => {
+                          if (members.length <= 1) return;
+                          const next = members.filter((_, idx) => idx !== mIdx);
+                          onUpdateContent({ teamMembers: next });
+                          onShowToast('Карточка эксперта удалена');
+                        };
 
-                    return (
-                      <div
-                        key={mIdx}
-                        className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-zinc-300 text-[11px]">
-                            {mIdx === 0 ? 'Первый эксперт' : 'Второй эксперт'}
-                          </span>
+                        const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (!file.type.startsWith('image/')) {
+                            onShowToast('Пожалуйста, выберите файл изображения', false);
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const dataUrl = event.target?.result as string;
+                            if (dataUrl) {
+                              handleMemberChange({ image: dataUrl });
+                              onShowToast(`Фото для «${member.name}» загружено`, true);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        };
 
-                        </div>
-
-                        {/* Avatar & Quick Select */}
-                        <div>
-                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
-                            Фотография
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={member.image}
-                              alt={member.name}
-                              className="h-9 w-9 rounded-lg object-cover border border-white/20 bg-black shrink-0"
-                            />
-                            <div className="flex flex-wrap gap-1 flex-1">
-                              {DEFAULT_TEAM_AVATARS.map((av) => (
+                        return (
+                          <div
+                            key={mIdx}
+                            className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-zinc-300 text-[11px]">
+                                {members.length === 1
+                                  ? 'Эксперт (Hero-формат)'
+                                  : mIdx === 0
+                                  ? 'Первый эксперт'
+                                  : 'Второй эксперт'}
+                              </span>
+                              {members.length > 1 && (
                                 <button
-                                  key={av.id}
                                   type="button"
-                                  onClick={() => handleMemberChange({ image: av.url })}
-                                  className={`px-1.5 py-0.5 rounded text-[10px] transition border ${
-                                    member.image === av.url
-                                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
-                                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
-                                  }`}
+                                  onClick={handleRemoveMember}
+                                  title="Удалить карточку специалиста"
+                                  className="rounded p-1 text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition"
                                 >
-                                  {av.name}
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
-                              ))}
-                              <label className="cursor-pointer px-1.5 py-0.5 rounded text-[10px] border border-dashed border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200 flex items-center gap-1">
-                                <Upload className="h-2.5 w-2.5" />
-                                <span>Своё фото</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleAvatarUpload}
-                                  className="hidden"
-                                />
+                              )}
+                            </div>
+
+                            {/* Avatar & Quick Select */}
+                            <div>
+                              <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                                Фотография
                               </label>
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={member.image}
+                                  alt={member.name}
+                                  className="h-9 w-9 rounded-lg object-cover border border-white/20 bg-black shrink-0"
+                                />
+                                <div className="flex flex-wrap gap-1 flex-1">
+                                  {DEFAULT_TEAM_AVATARS.map((av) => (
+                                    <button
+                                      key={av.id}
+                                      type="button"
+                                      onClick={() => handleMemberChange({ image: av.url })}
+                                      className={`px-1.5 py-0.5 rounded text-[10px] transition border ${
+                                        member.image === av.url
+                                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                                          : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                                      }`}
+                                    >
+                                      {av.name}
+                                    </button>
+                                  ))}
+                                  <label className="cursor-pointer px-1.5 py-0.5 rounded text-[10px] border border-dashed border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200 flex items-center gap-1">
+                                    <Upload className="h-2.5 w-2.5" />
+                                    <span>Своё фото</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleAvatarUpload}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Name */}
+                            <div>
+                              <label className="mb-1 block text-[10px] font-medium text-zinc-400">Имя</label>
+                              <input
+                                type="text"
+                                value={member.name}
+                                onChange={(e) => handleMemberChange({ name: e.target.value })}
+                                placeholder="Имя специалиста"
+                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Role / Description */}
+                            <div>
+                              <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                                Должность и специализация
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={member.role}
+                                onChange={(e) => handleMemberChange({ role: e.target.value })}
+                                placeholder="Описание задач и практики..."
+                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Metrics Row */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                                  Опыт (стаж)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={member.experience || ''}
+                                  onChange={(e) => handleMemberChange({ experience: e.target.value })}
+                                  placeholder="15+ лет"
+                                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                                  Метрика / Результат
+                                </label>
+                                <input
+                                  type="text"
+                                  value={member.achievement || ''}
+                                  onChange={(e) => handleMemberChange({ achievement: e.target.value })}
+                                  placeholder="16 млрд ₽"
+                                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-
-                        {/* Name */}
-                        <div>
-                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">Имя</label>
-                          <input
-                            type="text"
-                            value={member.name}
-                            onChange={(e) => handleMemberChange({ name: e.target.value })}
-                            placeholder="Имя специалиста"
-                            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Role / Description */}
-                        <div>
-                          <label className="mb-1 block text-[10px] font-medium text-zinc-400">
-                            Должность и специализация
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={member.role}
-                            onChange={(e) => handleMemberChange({ role: e.target.value })}
-                            placeholder="Описание задач и практики..."
-                            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Metrics Row */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="mb-1 block text-[10px] font-medium text-zinc-400">
-                              Опыт (стаж)
-                            </label>
-                            <input
-                              type="text"
-                              value={member.experience || ''}
-                              onChange={(e) => handleMemberChange({ experience: e.target.value })}
-                              placeholder="15+ лет"
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-medium text-zinc-400">
-                              Метрика / Результат
-                            </label>
-                            <input
-                              type="text"
-                              value={member.achievement || ''}
-                              onChange={(e) => handleMemberChange({ achievement: e.target.value })}
-                              placeholder="16 млрд ₽"
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/60 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  });
+                        );
+                      })}
+                    </>
+                  );
                 })()}
               </div>
             )}
@@ -513,11 +564,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
             {/* Font Scale Slider */}
             <div>
-              <div className="flex justify-between font-medium text-zinc-400 mb-1">
+              <div className="flex justify-between items-center font-medium text-zinc-400 mb-1.5">
                 <span>Масштаб текста:</span>
-                <span className="font-mono text-zinc-200">
-                  {Math.round(slide.typography.fontSizeScale * 100)}%
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-zinc-200">
+                    {Math.round(slide.typography.fontSizeScale * 100)}%
+                  </span>
+                  {Math.round(slide.typography.fontSizeScale * 100) !== 100 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateTypography({ fontSizeScale: 1.0 })}
+                      title="Сбросить на 100%"
+                      className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-emerald-400 hover:bg-zinc-700 hover:text-white transition"
+                    >
+                      1.0x
+                    </button>
+                  )}
+                </div>
               </div>
               <input
                 id="font-scale-slider"
@@ -531,7 +594,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 onChange={(e) =>
                   onUpdateTypography({ fontSizeScale: parseFloat(e.target.value) })
                 }
-                className="w-full accent-emerald-500"
+                className="w-full accent-emerald-500 cursor-pointer"
               />
             </div>
 
@@ -542,9 +605,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <button
                   onClick={() => onUpdateTypography({ align: 'left' })}
                   aria-label="Выравнивание по левому краю"
-                  className={`flex flex-1 items-center justify-center rounded py-1.5 ${
+                  className={`flex flex-1 items-center justify-center rounded py-1.5 transition ${
                     slide.typography.align === 'left'
-                      ? 'bg-zinc-800 text-white'
+                      ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -553,9 +616,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <button
                   onClick={() => onUpdateTypography({ align: 'center' })}
                   aria-label="Выравнивание по центру"
-                  className={`flex flex-1 items-center justify-center rounded py-1.5 ${
+                  className={`flex flex-1 items-center justify-center rounded py-1.5 transition ${
                     slide.typography.align === 'center'
-                      ? 'bg-zinc-800 text-white'
+                      ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -564,9 +627,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <button
                   onClick={() => onUpdateTypography({ align: 'right' })}
                   aria-label="Выравнивание по правому краю"
-                  className={`flex flex-1 items-center justify-center rounded py-1.5 ${
+                  className={`flex flex-1 items-center justify-center rounded py-1.5 transition ${
                     slide.typography.align === 'right'
-                      ? 'bg-zinc-800 text-white'
+                      ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -575,11 +638,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               </div>
             </div>
 
-            {/* Color Pickers */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Color Pickers with Quick Swatches */}
+            <div className="space-y-3.5">
               <div>
-                <label htmlFor="text-color-picker" className="mb-1 block font-medium text-zinc-400">Цвет текста</label>
-                <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-1.5">
+                <label htmlFor="text-color-picker" className="mb-1 block font-medium text-zinc-400">
+                  Цвет основного текста
+                </label>
+                <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-1.5 mb-1.5">
                   <input
                     id="text-color-picker"
                     name="textColor"
@@ -593,11 +658,30 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     {slide.typography.textColor}
                   </span>
                 </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-zinc-500 mr-1">Палитра:</span>
+                  {COLOR_PRESETS.map((cp) => (
+                    <button
+                      key={cp.value}
+                      type="button"
+                      onClick={() => onUpdateTypography({ textColor: cp.value })}
+                      title={cp.name}
+                      style={{ backgroundColor: cp.value }}
+                      className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
+                        slide.typography.textColor.toLowerCase() === cp.value.toLowerCase()
+                          ? 'border-emerald-400 ring-2 ring-emerald-500/40'
+                          : 'border-white/20'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label htmlFor="tag-color-picker" className="mb-1 block font-medium text-zinc-400">Цвет акцента</label>
-                <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-1.5">
+                <label htmlFor="tag-color-picker" className="mb-1 block font-medium text-zinc-400">
+                  Цвет акцента и тегов
+                </label>
+                <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-1.5 mb-1.5">
                   <input
                     id="tag-color-picker"
                     name="tagColor"
@@ -610,6 +694,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   <span className="font-mono text-[11px] text-zinc-300">
                     {slide.typography.tagColor}
                   </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-zinc-500 mr-1">Палитра:</span>
+                  {COLOR_PRESETS.map((cp) => (
+                    <button
+                      key={cp.value}
+                      type="button"
+                      onClick={() => onUpdateTypography({ tagColor: cp.value })}
+                      title={cp.name}
+                      style={{ backgroundColor: cp.value }}
+                      className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
+                        slide.typography.tagColor.toLowerCase() === cp.value.toLowerCase()
+                          ? 'border-emerald-400 ring-2 ring-emerald-500/40'
+                          : 'border-white/20'
+                      }`}
+                    />
+                  ))}
                 </div>
               </div>
             </div>

@@ -38,6 +38,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileInspector,
   isMobileInspectorOpen,
 }) => {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent || navigator.platform);
+
   return (
     <header className="sticky top-0 z-30 w-full border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md px-3 py-2.5 sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
@@ -66,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onUndo}
               disabled={!canUndo}
-              title="Отменить действие (Ctrl+Z)"
+              title={`Отменить действие (${isMac ? '⌘Z' : 'Ctrl+Z'})`}
               aria-label="Отменить действие"
               className="flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:pointer-events-none disabled:opacity-30"
             >
@@ -75,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onRedo}
               disabled={!canRedo}
-              title="Повторить действие (Ctrl+Shift+Z)"
+              title={`Повторить действие (${isMac ? '⌘⇧Z' : 'Ctrl+Shift+Z'})`}
               aria-label="Повторить действие"
               className="flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:pointer-events-none disabled:opacity-30"
             >

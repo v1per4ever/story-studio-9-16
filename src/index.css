@@ -79,9 +79,9 @@ button:focus-visible, [role="button"]:focus-visible, select:focus-visible { outl
 .story-canvas[data-dense] .checklist-layout > div > div { padding: 7px 8px; }
 .story-canvas[data-dense] .team-layout { gap: 8px; }
 .story-canvas[data-dense] .team-layout h2 { font-size: calc(20px * var(--story-font-scale)) !important; }
-.story-canvas[data-dense] .team-layout article { grid-template-columns: 72px minmax(0, 1fr); }
-.story-canvas[data-dense] .team-layout article > img { width: 72px; height: 116px; }
-.story-canvas[data-dense] .team-layout article > div { padding: 8px; gap: 6px; }
+.story-canvas[data-dense] .team-layout article:not(.hero-card) { grid-template-columns: 72px minmax(0, 1fr); }
+.story-canvas[data-dense] .team-layout article:not(.hero-card) > img { width: 72px; height: 116px; }
+.story-canvas[data-dense] .team-layout article:not(.hero-card) > div { padding: 8px; gap: 6px; }
 
 /* Apply the editor settings to text in every template. */
 .story-canvas [data-story-content] [contenteditable] { text-align: var(--story-align); }

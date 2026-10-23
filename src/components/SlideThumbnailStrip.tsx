@@ -61,7 +61,7 @@ export const SlideThumbnailStrip: React.FC<SlideThumbnailStripProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <span
                   className={`font-mono text-[11px] font-bold ${
-                    isSelected ? 'text-emerald-400' : 'text-zinc-500'
+                    isSelected ? 'text-emerald-400' : 'text-zinc-400'
                   }`}
                 >
                   #{slideNumber}
@@ -137,6 +137,10 @@ export const SlideThumbnailStrip: React.FC<SlideThumbnailStripProps> = ({
         <Plus className="h-3.5 w-3.5 text-emerald-400" />
         <span>Добавить слайд</span>
       </button>
+
+      <p className="mt-3 text-center text-[10px] text-zinc-500 font-mono">
+        Навигация: ← / →
+      </p>
     </aside>
   );
 };

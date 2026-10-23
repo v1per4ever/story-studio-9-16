@@ -512,49 +512,128 @@ export const StoryStage: React.FC<StoryStageProps> = ({
               </div>
             )}
 
-            {/* Two equal employee cards with one shared heading. */}
+            {/* Team Layout: Adaptive for 1 or 2 specialists */}
             {isTeam && (() => {
-              const defaults = PRESET_DEFINITIONS[slide.preset].defaultContent.teamMembers || [];
-              const members = [0, 1].map((index) => slide.content.teamMembers?.[index] || (index === 1 ? defaults.find((member) => member.name !== slide.content.teamMembers?.[0]?.name) : defaults[index])).filter((member) => member !== undefined);
-              return <div className="team-layout flex w-full flex-col gap-3 text-left">
-                <EditableText
-                  as="h2"
-                  value={slide.content.title}
-                  onChange={(title) => onUpdateContent({ title })}
-                  className="font-bold leading-tight tracking-tight outline-none"
-                  style={{fontSize: 22 * slide.typography.fontSizeScale}}
-                />
-                <div className="flex flex-col gap-3">
-                  {members.slice(0, 2).map((member, index) => {
-                    const updateMember = (patch: Partial<typeof member>) => {
-                      const next = [...members]; next[index] = {...member, ...patch}; onUpdateContent({teamMembers: next});
-                    };
-                    return <article key={index} className="grid grid-cols-[88px_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10 bg-zinc-950/90 text-left">
-                      <img src={member.image} alt={member.name} crossOrigin="anonymous" className="h-[142px] w-[88px] object-cover object-top" />
-                      <div className="flex min-w-0 flex-col gap-2 p-3">
-                        <EditableText
-                          as="h3"
-                          value={member.name}
-                          onChange={(name) => updateMember({ name })}
-                          style={{fontSize: 18 * slide.typography.fontSizeScale}}
-                          className="font-semibold leading-tight outline-none"
-                        />
-                        <EditableText
-                          as="p"
-                          value={member.role}
-                          onChange={(role) => updateMember({ role })}
-                          style={{fontSize: 13 * slide.typography.fontSizeScale}}
-                          className="leading-[1.4] text-zinc-200 outline-none"
-                        />
-                        {(member.experience || member.achievement) && <div style={{fontSize: 12 * slide.typography.fontSizeScale}} className="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-white/10 pt-2 leading-snug text-zinc-300">
-                          {member.experience && <EditableText as="span" value={member.experience} onChange={(experience) => updateMember({ experience })} className="outline-none" />}
-                          {member.achievement && <EditableText as="span" value={member.achievement} onChange={(achievement) => updateMember({ achievement })} className="outline-none" />}
-                        </div>}
-                      </div>
-                    </article>;
-                  })}
+              const defaults = PRESET_DEFINITIONS[slide.preset]?.defaultContent?.teamMembers || [];
+              const members = (slide.content.teamMembers && slide.content.teamMembers.length > 0)
+                ? slide.content.teamMembers
+                : defaults;
+              const isSingle = members.length === 1;
+
+              return (
+                <div className={`team-layout flex w-full flex-col text-left ${isSingle ? 'gap-3.5 my-auto' : 'gap-3'}`}>
+                  <EditableText
+                    as="h2"
+                    value={slide.content.title}
+                    onChange={(title) => onUpdateContent({ title })}
+                    className="font-bold leading-tight tracking-tight outline-none"
+                    style={{ fontSize: (isSingle ? 23 : 21) * slide.typography.fontSizeScale }}
+                  />
+                  <div className={`flex flex-col ${isSingle ? 'gap-3' : 'gap-2.5'}`}>
+                    {members.slice(0, 2).map((member, index) => {
+                      const updateMember = (patch: Partial<typeof member>) => {
+                        const next = [...members];
+                        next[index] = { ...member, ...patch };
+                        onUpdateContent({ teamMembers: next });
+                      };
+
+                      return isSingle ? (
+                        <article
+                          key={index}
+                          className="hero-card relative flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-zinc-950/90 text-left shadow-2xl backdrop-blur-md"
+                        >
+                          <div className="relative h-[200px] w-full overflow-hidden bg-zinc-900">
+                            <img
+                              src={member.image}
+                              alt={member.name}
+                              crossOrigin="anonymous"
+                              className="h-full w-full object-cover object-top"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
+                            {member.experience && (
+                              <span className="absolute bottom-2.5 left-3 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                                Опыт: {member.experience}
+                              </span>
+                            )}
+                            {member.achievement && (
+                              <span className="absolute bottom-2.5 right-3 rounded-full bg-white/10 border border-white/20 px-2.5 py-0.5 text-[10px] font-medium text-zinc-200">
+                                {member.achievement}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1.5 p-3.5">
+                            <EditableText
+                              as="h3"
+                              value={member.name}
+                              onChange={(name) => updateMember({ name })}
+                              style={{ fontSize: 20 * slide.typography.fontSizeScale }}
+                              className="font-bold leading-tight outline-none text-white"
+                            />
+                            <EditableText
+                              as="p"
+                              value={member.role}
+                              onChange={(role) => updateMember({ role })}
+                              style={{ fontSize: 13.5 * slide.typography.fontSizeScale }}
+                              className="leading-[1.45] text-zinc-200 outline-none"
+                            />
+                          </div>
+                        </article>
+                      ) : (
+                        <article
+                          key={index}
+                          className="grid grid-cols-[88px_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10 bg-zinc-950/90 text-left"
+                        >
+                          <img
+                            src={member.image}
+                            alt={member.name}
+                            crossOrigin="anonymous"
+                            className="h-[142px] w-[88px] object-cover object-top"
+                          />
+                          <div className="flex min-w-0 flex-col gap-2 p-3">
+                            <EditableText
+                              as="h3"
+                              value={member.name}
+                              onChange={(name) => updateMember({ name })}
+                              style={{ fontSize: 18 * slide.typography.fontSizeScale }}
+                              className="font-semibold leading-tight outline-none"
+                            />
+                            <EditableText
+                              as="p"
+                              value={member.role}
+                              onChange={(role) => updateMember({ role })}
+                              style={{ fontSize: 13 * slide.typography.fontSizeScale }}
+                              className="leading-[1.4] text-zinc-200 outline-none"
+                            />
+                            {(member.experience || member.achievement) && (
+                              <div
+                                style={{ fontSize: 12 * slide.typography.fontSizeScale }}
+                                className="mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-white/10 pt-2 leading-snug text-zinc-300"
+                              >
+                                {member.experience && (
+                                  <EditableText
+                                    as="span"
+                                    value={member.experience}
+                                    onChange={(experience) => updateMember({ experience })}
+                                    className="outline-none"
+                                  />
+                                )}
+                                {member.achievement && (
+                                  <EditableText
+                                    as="span"
+                                    value={member.achievement}
+                                    onChange={(achievement) => updateMember({ achievement })}
+                                    className="outline-none"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>;
+              );
             })()}
 
             {/* QR Code Module */}
@@ -600,13 +679,58 @@ export const StoryStage: React.FC<StoryStageProps> = ({
           </div>
           {/* Layer 8: Safe Zones Guide Overlay */}
           {showSafeZones && (
-            <div data-editor-only className="absolute inset-0 z-30 pointer-events-none">
-              <div className="absolute inset-x-0 top-0 bg-emerald-500/15 border-b border-dashed border-emerald-400/70" style={{ height: margins.top }} />
-              <div className="absolute inset-x-0 bottom-0 bg-emerald-500/15 border-t border-dashed border-emerald-400/70" style={{ height: margins.bottom }} />
-              <div className="absolute left-0 bg-emerald-500/15" style={{ top: margins.top, bottom: margins.bottom, width: margins.left }} />
-              <div className="absolute right-0 bg-emerald-500/15" style={{ top: margins.top, bottom: margins.bottom, width: margins.right }} />
-              <div className="absolute border border-dashed border-emerald-400/70" style={{ top: margins.top, bottom: margins.bottom, left: margins.left, right: margins.right }} />
-              <span className="absolute top-5 inset-x-0 text-center text-[12px] font-semibold text-emerald-300">{slide.destination === 'shorts' ? 'Shorts / Reels' : slide.destination === 'free' ? 'Свободный макет' : 'Stories'} · ориентир безопасной области</span>
+            <div data-editor-only className="absolute inset-0 z-30 pointer-events-none select-none font-sans">
+              {/* Top boundary */}
+              <div
+                className="absolute inset-x-0 top-0 bg-emerald-500/15 border-b border-dashed border-emerald-400/80 flex flex-col justify-end p-2"
+                style={{ height: margins.top }}
+              >
+                <div className="flex items-center justify-between text-[10px] font-medium text-emerald-300">
+                  <span className="rounded bg-black/60 px-1.5 py-0.5 border border-emerald-500/30">
+                    {slide.destination === 'shorts' ? 'Шапка Shorts (64px)' : slide.destination === 'free' ? 'Верхний отступ (24px)' : 'Профиль и статус (90px)'}
+                  </span>
+                  <span className="text-[9px] text-emerald-400/80 font-mono">Top zone</span>
+                </div>
+              </div>
+
+              {/* Bottom boundary */}
+              <div
+                className="absolute inset-x-0 bottom-0 bg-emerald-500/15 border-t border-dashed border-emerald-400/80 flex flex-col justify-start p-2"
+                style={{ height: margins.bottom }}
+              >
+                <div className="flex items-center justify-between text-[10px] font-medium text-emerald-300">
+                  <span className="rounded bg-black/60 px-1.5 py-0.5 border border-emerald-500/30">
+                    {slide.destination === 'shorts' ? 'Описание и звук (160px)' : slide.destination === 'free' ? 'Нижний отступ (24px)' : 'Поле ответа и реакции (128px)'}
+                  </span>
+                  <span className="text-[9px] text-emerald-400/80 font-mono">Bottom zone</span>
+                </div>
+              </div>
+
+              {/* Left / Right margin guides */}
+              <div className="absolute left-0 bg-emerald-500/10" style={{ top: margins.top, bottom: margins.bottom, width: margins.left }} />
+              <div
+                className="absolute right-0 bg-emerald-500/15 border-l border-dashed border-emerald-400/60 flex items-center justify-center"
+                style={{ top: margins.top, bottom: margins.bottom, width: margins.right }}
+              >
+                {slide.destination === 'shorts' && (
+                  <span className="rotate-90 text-[9px] font-medium text-emerald-300 tracking-wider whitespace-nowrap bg-black/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                    Лайк / Звук
+                  </span>
+                )}
+              </div>
+
+              {/* Active content rectangle */}
+              <div
+                className="absolute border border-dashed border-emerald-400/80"
+                style={{ top: margins.top, bottom: margins.bottom, left: margins.left, right: margins.right }}
+              />
+
+              {/* Central platform pill */}
+              <div className="absolute top-2 inset-x-0 flex justify-center">
+                <span className="rounded-full bg-zinc-950/90 px-3 py-0.5 text-[10px] font-bold tracking-wide text-emerald-300 border border-emerald-500/40 shadow-lg backdrop-blur-md">
+                  {slide.destination === 'shorts' ? 'YouTube Shorts / Reels' : slide.destination === 'free' ? 'Свободный макет' : 'Stories (Instagram / Telegram / VK)'}
+                </span>
+              </div>
             </div>
           )}
         </div>
